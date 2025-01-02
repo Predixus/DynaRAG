@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Predixus/dyna-rag/store"
+	"github.com/Predixus/DynaRAG/store"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"

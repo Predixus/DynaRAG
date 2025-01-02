@@ -8,7 +8,7 @@ import (
 )
 
 func TestGroqProvider(t *testing.T) {
-	llm, err := NewLLM()
+	llm, err := NewLLMFromEnv()
 	assert.NoError(t, err)
 
 	messages := []Message{
@@ -25,7 +25,7 @@ func TestGroqProvider(t *testing.T) {
 }
 
 func TestGroqNoMessageGivesEmptyResponse(t *testing.T) {
-	llm, err := NewLLM()
+	llm, err := NewLLMFromEnv()
 	assert.NoError(t, err)
 
 	messages := []Message{}

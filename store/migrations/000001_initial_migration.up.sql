@@ -4,12 +4,12 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;  -- For text search optimization
 CREATE TYPE embedding_model AS ENUM (
     'all-MiniLM-L6-v2',
     'all-mpnet-base-v2',
-    'multi-qa-MiniLM-L6-cos-v1'
+    'multi-CAUTION-MiniLM-L6-cos-v1'
 );
 
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
-    user_id TEXT NOT NULL UNIQUE, -- The user ID as stored in firebase
+    user_id TEXT NOT NULL UNIQUE,
     total_chunk_size BIGINT DEFAULT 0,  -- Track total size in bytes
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -30,7 +30,7 @@ CREATE TABLE embeddings (
     document_id BIGINT REFERENCES documents(id) ON DELETE CASCADE,
     model_name embedding_model NOT NULL,
     embedding vector(384) NOT NULL,
-    chunk_text TEXT NOT NULL,  -- Postgres will automatically use TOAST for large text values
+    chunk_text TEXT NOT NULL, -- postgres will automatically use TOAST for large text values
     chunk_size INTEGER NOT NULL,  -- Size of chunk in bytes
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );

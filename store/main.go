@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"os"
 	"sync"
@@ -10,6 +11,9 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/joho/godotenv"
 	"github.com/pgvector/pgvector-go"
+
+	"github.com/Predixus/DynaRAG/types"
+	"github.com/Predixus/DynaRAG/utils"
 )
 
 var (
@@ -49,6 +53,7 @@ func AddEmbedding(
 	userId string,
 	filePath string,
 	text string,
+	metadata map[string]interface{},
 ) (*Embedding, error) {
 	embedding, err := GetSingleEmbedding(ctx, text)
 	if err != nil {
@@ -85,6 +90,22 @@ func AddEmbedding(
 		return nil, err
 	}
 
+	// calculate hash
+	var metadataHash string = ""
+	if len(metadata) != 0 {
+		metadataJsonBytes, err := json.Marshal(metadata)
+		if err != nil {
+			log.Println("Error marshalling metadata: ", err)
+			return nil, err
+		}
+
+		metadataHash, err = utils.CalculateMetadataHash(metadataJsonBytes)
+		if err != nil {
+			log.Println("Error calculating hash on Metadata: ", err)
+			return nil, err
+		}
+	}
+
 	embeddingRecord, err := q.CreateEmbedding(ctx, CreateEmbeddingParams{
 		DocumentID: pgtype.Int8{
 			Int64: doc.ID,
@@ -93,6 +114,11 @@ func AddEmbedding(
 		ModelName: "all-MiniLM-L6-v2",
 		ChunkText: text,
 		Embedding: pgvector.NewVector(embedding),
+		Metadata:  metadata,
+		MetadataHash: pgtype.Text{
+			String: metadataHash,
+			Valid:  true,
+		},
 	})
 	if err != nil {
 		return nil, err
@@ -110,6 +136,7 @@ func GetTopKEmbeddings(
 	userId string,
 	text string,
 	k int8,
+	metadata *types.JSONMap,
 ) ([]FindTopKNNEmbeddingsRow, error) {
 	embedding, err := GetSingleEmbedding(ctx, text)
 	if err != nil {
@@ -129,6 +156,21 @@ func GetTopKEmbeddings(
 		return nil, err
 	}
 
+	// calculate metadatahash
+	var metadataHashPtr *string
+	if metadata != nil {
+		jsonMetadataBytes, err := json.Marshal(metadata)
+		if err != nil {
+			return nil, err
+		}
+		metadataHash, err := utils.CalculateMetadataHash(jsonMetadataBytes)
+		log.Println("MetadataHash: ", metadataHash)
+		metadataHashPtr = &metadataHash
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return q.FindTopKNNEmbeddings(ctx, FindTopKNNEmbeddingsParams{
 		QueryEmbedding: pgvector.NewVector(embedding),
 		ModelName:      "all-MiniLM-L6-v2",
@@ -137,6 +179,15 @@ func GetTopKEmbeddings(
 			Valid: true,
 		},
 		K: int32(k),
+		MetadataHash: pgtype.Text{
+			Valid: metadataHashPtr != nil,
+			String: func() string {
+				if metadataHashPtr != nil {
+					return *metadataHashPtr
+				}
+				return ""
+			}(),
+		},
 	})
 }
 
@@ -242,7 +293,11 @@ func GetUserStats(ctx context.Context, userId string) (*GetUserStatsRow, error) 
 	return &stats, nil
 }
 
-func ListUserChunks(ctx context.Context, userId string) ([]ListUserChunksRow, error) {
+func ListUserChunks(
+	ctx context.Context,
+	userId string,
+	metadata *types.JSONMap,
+) ([]ListUserChunksRow, error) {
 	conn, err := pgx.Connect(ctx, postgres_conn_str)
 	if err != nil {
 		return nil, err
@@ -257,12 +312,35 @@ func ListUserChunks(ctx context.Context, userId string) ([]ListUserChunksRow, er
 		return nil, err
 	}
 
+	// calculate metadatahash
+	var metadataHashPtr *string
+	if metadata != nil {
+		jsonMetadataBytes, err := json.Marshal(metadata)
+		if err != nil {
+			return nil, err
+		}
+		metadataHash, err := utils.CalculateMetadataHash(jsonMetadataBytes)
+		log.Println("MetadataHash: ", metadataHash)
+		metadataHashPtr = &metadataHash
+		if err != nil {
+			return nil, err
+		}
+	}
 	// Get all chunks for the user
-	chunks, err := q.ListUserChunks(ctx, pgtype.Int8{
-		Int64: user.ID,
-		Valid: true,
+	chunks, err := q.ListUserChunks(ctx, ListUserChunksParams{
+		UserID: pgtype.Int8{
+			Int64: user.ID,
+			Valid: true,
+		},
+		MetadataHash: pgtype.Text{String: func() string {
+			if metadataHashPtr != nil {
+				return *metadataHashPtr
+			}
+			return ""
+		}(), Valid: metadataHashPtr != nil},
 	})
 	if err != nil {
+		log.Println("Error when listing user chunks")
 		return nil, err
 	}
 

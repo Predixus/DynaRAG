@@ -7,7 +7,7 @@ import (
 	"io"
 	"text/template"
 
-	"github.com/Predixus/dyna-rag/llm"
+	"github.com/Predixus/DynaRAG/llm"
 )
 
 // Document represents a single document with its metadata
@@ -123,7 +123,7 @@ func GenerateRAGResponse(documents []Document, userQuery string, writer io.Write
 	}
 
 	// Create LLM instance
-	llm, err := llm.NewLLM()
+	llm, err := llm.NewLLMFromEnv()
 	if err != nil {
 		return fmt.Errorf("failed to create LLM: %v", err)
 	}

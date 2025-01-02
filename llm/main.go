@@ -68,19 +68,16 @@ const (
 	AssistantRole Role        = "assistant"
 )
 
-// local variables
-var (
-	chosenProvider LLMProvider
-	llmToken       string
-)
-
 // functions
 
 // setup Sets up the environment. Required environment variables:
 // - LLM_PROVIDER - the LLM provider, either groq or ...
 // - LLM_TOKEN - token to the provider
-func setup() (LLMProvider, string) {
-	godotenv.Load()
+func setup(envFile string) (LLMProvider, string) {
+	if envFile != "" {
+		godotenv.Load(envFile)
+	}
+
 	llmProvider := os.Getenv("LLM_PROVIDER")
 	if llmProvider == "" {
 		panic("`LLM_PROVIDER` not provided")
@@ -97,10 +94,6 @@ func setup() (LLMProvider, string) {
 	}
 
 	return provider, llmToken
-}
-
-func init() {
-	chosenProvider, llmToken = setup()
 }
 
 // ParseLLMProvider handle the requested LLM provider, if not supported raise an error
@@ -140,20 +133,24 @@ func (r Role) isValid() bool {
 }
 
 // NewLLM returns a specific LLMModel with the appropriate response format type
-func NewLLM() (LLM, error) {
-	switch chosenProvider {
+func NewLLM(provider LLMProvider, token string) (LLM, error) {
+	switch provider {
 	case GroqProvider:
-		// settings for the groq provider
 		return &LLMModel[GroqStreamingChatCompletion]{
 			model:       "llama-3.3-70b-versatile",
 			provider:    GroqProvider,
-			token:       llmToken,
+			token:       token,
 			endpoint:    "https://api.groq.com/openai/v1/chat/completions",
 			temperature: 0.2,
 		}, nil
 	default:
-		return nil, fmt.Errorf("Unsupported provider: %s", chosenProvider)
+		return nil, fmt.Errorf("Unsupported provider: %s", provider)
 	}
+}
+
+func NewLLMFromEnv() (LLM, error) {
+	provider, token := setup("../.env")
+	return NewLLM(provider, token)
 }
 
 func (l *LLMModel[T]) Generate(messages []Message, writer io.Writer) error {
