@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,18 +18,22 @@ func TestMetadataHashPossible(t *testing.T) {
 			"y": 2,
 		},
 	}
-	hash1, err := CalculateMetadataHash(testData)
+	jsonBytes, err := json.Marshal(testData)
 	assert.NoError(t, err)
-	hash2, err := CalculateMetadataHash(testData)
+	hash1, err := CalculateMetadataHash(jsonBytes)
+	assert.NoError(t, err)
+	hash2, err := CalculateMetadataHash(jsonBytes)
 	assert.Equal(t, hash1, hash2)
 }
 
 // TestEmptyInterface check that the empty interfaces passes successfully
 func TestEmptyInterface(t *testing.T) {
 	testData := map[string]interface{}{}
-	hash1, err := CalculateMetadataHash(testData)
+	jsonBytes, err := json.Marshal(testData)
 	assert.NoError(t, err)
-	hash2, err := CalculateMetadataHash(testData)
+	hash1, err := CalculateMetadataHash(jsonBytes)
+	assert.NoError(t, err)
+	hash2, err := CalculateMetadataHash(jsonBytes)
 	assert.NoError(t, err)
 	assert.Equal(t, hash1, hash2)
 }
@@ -44,10 +49,12 @@ func TestDifferentDataTypes(t *testing.T) {
 		"array":      []interface{}{1, "two", 3.0},
 		"emptyArray": []interface{}{},
 	}
-
-	hash1, err := CalculateMetadataHash(testData)
+	jsonBytes, err := json.Marshal(testData)
 	assert.NoError(t, err)
-	hash2, err := CalculateMetadataHash(testData)
+
+	hash1, err := CalculateMetadataHash(jsonBytes)
+	assert.NoError(t, err)
+	hash2, err := CalculateMetadataHash(jsonBytes)
 	assert.NoError(t, err)
 	assert.Equal(t, hash1, hash2)
 }
@@ -63,10 +70,12 @@ func TestDeepNesting(t *testing.T) {
 			},
 		},
 	}
-
-	hash1, err := CalculateMetadataHash(testData)
+	jsonBytes, err := json.Marshal(testData)
 	assert.NoError(t, err)
-	hash2, err := CalculateMetadataHash(testData)
+
+	hash1, err := CalculateMetadataHash(jsonBytes)
+	assert.NoError(t, err)
+	hash2, err := CalculateMetadataHash(jsonBytes)
 	assert.NoError(t, err)
 	assert.Equal(t, hash1, hash2)
 }
@@ -85,9 +94,14 @@ func TestOrderIndependence(t *testing.T) {
 		"b": 2,
 	}
 
-	hash1, err := CalculateMetadataHash(data1)
+	jsonBytes1, err := json.Marshal(data1)
 	assert.NoError(t, err)
-	hash2, err := CalculateMetadataHash(data2)
+	jsonBytes2, err := json.Marshal(data2)
+	assert.NoError(t, err)
+
+	hash1, err := CalculateMetadataHash(jsonBytes1)
+	assert.NoError(t, err)
+	hash2, err := CalculateMetadataHash(jsonBytes2)
 	assert.NoError(t, err)
 	assert.Equal(t, hash1, hash2)
 }
@@ -102,9 +116,14 @@ func TestArrayOrderDependence(t *testing.T) {
 		"array": []interface{}{3, 2, 1},
 	}
 
-	hash1, err := CalculateMetadataHash(data1)
+	jsonBytes1, err := json.Marshal(data1)
 	assert.NoError(t, err)
-	hash2, err := CalculateMetadataHash(data2)
+	jsonBytes2, err := json.Marshal(data2)
+	assert.NoError(t, err)
+
+	hash1, err := CalculateMetadataHash(jsonBytes1)
+	assert.NoError(t, err)
+	hash2, err := CalculateMetadataHash(jsonBytes2)
 	assert.NoError(t, err)
 	assert.NotEqual(t, hash1, hash2)
 }
@@ -119,10 +138,11 @@ func TestSpecialCharacters(t *testing.T) {
 		"newlines":      "line1\nline2",
 		"tabs":          "tab\there",
 	}
-
-	hash1, err := CalculateMetadataHash(testData)
+	jsonBytes, err := json.Marshal(testData)
 	assert.NoError(t, err)
-	hash2, err := CalculateMetadataHash(testData)
+	hash1, err := CalculateMetadataHash(jsonBytes)
+	assert.NoError(t, err)
+	hash2, err := CalculateMetadataHash(jsonBytes)
 	assert.NoError(t, err)
 	assert.Equal(t, hash1, hash2)
 }
@@ -139,9 +159,12 @@ func TestLargeValues(t *testing.T) {
 		"large": string(largeString),
 	}
 
-	hash1, err := CalculateMetadataHash(testData)
+	jsonBytes, err := json.Marshal(testData)
 	assert.NoError(t, err)
-	hash2, err := CalculateMetadataHash(testData)
+
+	hash1, err := CalculateMetadataHash(jsonBytes)
+	assert.NoError(t, err)
+	hash2, err := CalculateMetadataHash(jsonBytes)
 	assert.NoError(t, err)
 	assert.Equal(t, hash1, hash2)
 }
@@ -151,9 +174,15 @@ func TestDistinctHashes(t *testing.T) {
 	data1 := map[string]interface{}{"key": "value1"}
 	data2 := map[string]interface{}{"key": "value2"}
 
-	hash1, err := CalculateMetadataHash(data1)
+	jsonBytes1, err := json.Marshal(data1)
 	assert.NoError(t, err)
-	hash2, err := CalculateMetadataHash(data2)
+
+	jsonBytes2, err := json.Marshal(data2)
+	assert.NoError(t, err)
+
+	hash1, err := CalculateMetadataHash(jsonBytes1)
+	assert.NoError(t, err)
+	hash2, err := CalculateMetadataHash(jsonBytes2)
 	assert.NoError(t, err)
 	assert.NotEqual(t, hash1, hash2)
 }
@@ -161,7 +190,9 @@ func TestDistinctHashes(t *testing.T) {
 // TestNilMap verifies handling of nil map
 func TestNilMap(t *testing.T) {
 	var testData map[string]interface{}
-	hash, err := CalculateMetadataHash(testData)
+	jsonBytes, err := json.Marshal(testData)
+	assert.NoError(t, err)
+	hash, err := CalculateMetadataHash(jsonBytes)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, hash)
 }
@@ -175,10 +206,12 @@ func TestNumericPrecision(t *testing.T) {
 		"scientific":    1.23456789e+08,
 		"small_decimal": 0.0000000123456789,
 	}
-
-	hash1, err := CalculateMetadataHash(testData)
+	jsonBytes, err := json.Marshal(testData)
 	assert.NoError(t, err)
-	hash2, err := CalculateMetadataHash(testData)
+
+	hash1, err := CalculateMetadataHash(jsonBytes)
+	assert.NoError(t, err)
+	hash2, err := CalculateMetadataHash(jsonBytes)
 	assert.NoError(t, err)
 	assert.Equal(t, hash1, hash2)
 }

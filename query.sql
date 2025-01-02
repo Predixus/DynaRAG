@@ -73,6 +73,7 @@ SELECT
     e.chunk_text,
     e.chunk_size,
     d.file_path,
+    e.metadata,
     (e.embedding <-> sqlc.arg(query_embedding)::vector)::float8 as distance,
     (1 - (e.embedding <-> sqlc.arg(query_embedding)::vector))::float8 as similarity
 FROM embeddings e
@@ -89,6 +90,7 @@ WITH similarity_scores AS (
         e.document_id,
         e.chunk_text,
         e.chunk_size,
+        e.metadata,
         d.file_path,
         1 - (e.embedding <=> sqlc.arg(query_embedding)::vector) as similarity
     FROM embeddings e
@@ -120,6 +122,7 @@ GROUP BY u.id, u.total_chunk_size, a.request_count;
 SELECT 
     e.id,
     e.chunk_text,
+    e.metadata,
     e.chunk_size,
     e.model_name,
     e.created_at,

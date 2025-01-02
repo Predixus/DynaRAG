@@ -8,6 +8,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 
+	"github.com/Predixus/DynaRAG/types"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/pgvector/pgvector-go"
 )
@@ -15,9 +16,9 @@ import (
 type EmbeddingModel string
 
 const (
-	EmbeddingModelAllMiniLML6V2        EmbeddingModel = "all-MiniLM-L6-v2"
-	EmbeddingModelAllMpnetBaseV2       EmbeddingModel = "all-mpnet-base-v2"
-	EmbeddingModelMultiQaMiniLML6CosV1 EmbeddingModel = "multi-qa-MiniLM-L6-cos-v1"
+	EmbeddingModelAllMiniLML6V2             EmbeddingModel = "all-MiniLM-L6-v2"
+	EmbeddingModelAllMpnetBaseV2            EmbeddingModel = "all-mpnet-base-v2"
+	EmbeddingModelMultiCAUTIONMiniLML6CosV1 EmbeddingModel = "multi-CAUTION-MiniLM-L6-cos-v1"
 )
 
 func (e *EmbeddingModel) Scan(src interface{}) error {
@@ -81,7 +82,7 @@ type Embedding struct {
 	ChunkText    string
 	ChunkSize    int32
 	CreatedAt    pgtype.Timestamptz
-	Metadata     []byte
+	Metadata     types.JSONMap
 	MetadataHash pgtype.Text
 }
 

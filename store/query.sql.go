@@ -8,6 +8,7 @@ package store
 import (
 	"context"
 
+	"github.com/Predixus/DynaRAG/types"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/pgvector/pgvector-go"
 )
@@ -59,7 +60,7 @@ type CreateEmbeddingParams struct {
 	ModelName    EmbeddingModel
 	ChunkText    string
 	Embedding    pgvector.Vector
-	Metadata     []byte
+	Metadata     types.JSONMap
 	MetadataHash pgtype.Text
 }
 
@@ -142,6 +143,7 @@ WITH similarity_scores AS (
         e.document_id,
         e.chunk_text,
         e.chunk_size,
+        e.metadata,
         d.file_path,
         1 - (e.embedding <=> $2::vector) as similarity
     FROM embeddings e
@@ -151,7 +153,7 @@ WITH similarity_scores AS (
     AND e.model_name = $5
     AND 1 - (e.embedding <=> $2::vector) > $6
 )
-SELECT id, document_id, chunk_text, chunk_size, file_path, similarity
+SELECT id, document_id, chunk_text, chunk_size, metadata, file_path, similarity
 FROM similarity_scores
 ORDER BY similarity DESC
 LIMIT $1
@@ -171,6 +173,7 @@ type FindSimilarEmbeddingsInDocumentRow struct {
 	DocumentID pgtype.Int8
 	ChunkText  string
 	ChunkSize  int32
+	Metadata   types.JSONMap
 	FilePath   string
 	Similarity int32
 }
@@ -196,6 +199,7 @@ func (q *Queries) FindSimilarEmbeddingsInDocument(ctx context.Context, arg FindS
 			&i.DocumentID,
 			&i.ChunkText,
 			&i.ChunkSize,
+			&i.Metadata,
 			&i.FilePath,
 			&i.Similarity,
 		); err != nil {
@@ -216,6 +220,7 @@ SELECT
     e.chunk_text,
     e.chunk_size,
     d.file_path,
+    e.metadata,
     (e.embedding <-> $1::vector)::float8 as distance,
     (1 - (e.embedding <-> $1::vector))::float8 as similarity
 FROM embeddings e
@@ -239,6 +244,7 @@ type FindTopKNNEmbeddingsRow struct {
 	ChunkText  string
 	ChunkSize  int32
 	FilePath   string
+	Metadata   types.JSONMap
 	Distance   float64
 	Similarity float64
 }
@@ -263,6 +269,7 @@ func (q *Queries) FindTopKNNEmbeddings(ctx context.Context, arg FindTopKNNEmbedd
 			&i.ChunkText,
 			&i.ChunkSize,
 			&i.FilePath,
+			&i.Metadata,
 			&i.Distance,
 			&i.Similarity,
 		); err != nil {
@@ -464,6 +471,7 @@ const listUserChunks = `-- name: ListUserChunks :many
 SELECT 
     e.id,
     e.chunk_text,
+    e.metadata,
     e.chunk_size,
     e.model_name,
     e.created_at,
@@ -478,6 +486,7 @@ ORDER BY e.created_at DESC
 type ListUserChunksRow struct {
 	ID         int64
 	ChunkText  string
+	Metadata   types.JSONMap
 	ChunkSize  int32
 	ModelName  EmbeddingModel
 	CreatedAt  pgtype.Timestamptz
@@ -497,6 +506,7 @@ func (q *Queries) ListUserChunks(ctx context.Context, userID pgtype.Int8) ([]Lis
 		if err := rows.Scan(
 			&i.ID,
 			&i.ChunkText,
+			&i.Metadata,
 			&i.ChunkSize,
 			&i.ModelName,
 			&i.CreatedAt,

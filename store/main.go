@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"os"
 	"sync"
@@ -89,9 +90,19 @@ func AddEmbedding(
 	}
 
 	// calculate hash
-	metadataHash, err := utils.CalculateMetadataHash(metadata)
-	if err != nil {
-		log.Println("Error calculating hash on Metadata: ", err)
+	var metadataHash string = ""
+	if len(metadata) != 0 {
+		metadataJsonBytes, err := json.Marshal(metadata)
+		if err != nil {
+			log.Println("Error marshalling metadata: ", err)
+			return nil, err
+		}
+
+		metadataHash, err = utils.CalculateMetadataHash(metadataJsonBytes)
+		if err != nil {
+			log.Println("Error calculating hash on Metadata: ", err)
+			return nil, err
+		}
 	}
 
 	embeddingRecord, err := q.CreateEmbedding(ctx, CreateEmbeddingParams{
@@ -99,11 +110,14 @@ func AddEmbedding(
 			Int64: doc.ID,
 			Valid: true,
 		},
-		ModelName:    "all-MiniLM-L6-v2",
-		ChunkText:    text,
-		Embedding:    pgvector.NewVector(embedding),
-		Metadata:     metadata,
-		MetadataHash: metadataHash,
+		ModelName: "all-MiniLM-L6-v2",
+		ChunkText: text,
+		Embedding: pgvector.NewVector(embedding),
+		Metadata:  metadata,
+		MetadataHash: pgtype.Text{
+			String: metadataHash,
+			Valid:  true,
+		},
 	})
 	if err != nil {
 		return nil, err

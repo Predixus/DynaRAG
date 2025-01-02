@@ -6,5 +6,10 @@ sql:
     gen:
       go:
         package: "store"
-        sql_package: "pgx/v5"
         out: "store"
+        sql_package: "pgx/v5"
+        overrides:
+          - db_type: "jsonb"
+            go_type:
+              import: "github.com/Predixus/DynaRAG/types"
+              type: "JSONMap"

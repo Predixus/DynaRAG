@@ -123,7 +123,7 @@ func GenerateRAGResponse(documents []Document, userQuery string, writer io.Write
 	}
 
 	// Create LLM instance
-	llm, err := llm.NewLLM()
+	llm, err := llm.NewLLMFromEnv()
 	if err != nil {
 		return fmt.Errorf("failed to create LLM: %v", err)
 	}

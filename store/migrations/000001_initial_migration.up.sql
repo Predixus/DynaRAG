@@ -30,8 +30,7 @@ CREATE TABLE embeddings (
     document_id BIGINT REFERENCES documents(id) ON DELETE CASCADE,
     model_name embedding_model NOT NULL,
     embedding vector(384) NOT NULL,
-    chunk_text TEXT NOT NULL, -- postgres will automatically  [!TIP]
-    > rge text values
+    chunk_text TEXT NOT NULL, -- postgres will automatically use TOAST for large text values
     chunk_size INTEGER NOT NULL,  -- Size of chunk in bytes
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
