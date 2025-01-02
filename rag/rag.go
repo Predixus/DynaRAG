@@ -7,7 +7,7 @@ import (
 	"io"
 	"text/template"
 
-	"github.com/Predixus/dyna-rag/llm"
+	"github.com/Predixus/DynaRAG/llm"
 )
 
 // Document represents a single document with its metadata

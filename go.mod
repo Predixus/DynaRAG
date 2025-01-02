@@ -1,4 +1,4 @@
-module github.com/Predixus/dyna-rag
+module github.com/Predixus/DynaRAG
 
 go 1.23.3
 

@@ -10,6 +10,8 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/joho/godotenv"
 	"github.com/pgvector/pgvector-go"
+
+	"github.com/Predixus/DynaRAG/utils"
 )
 
 var (
@@ -49,6 +51,7 @@ func AddEmbedding(
 	userId string,
 	filePath string,
 	text string,
+	metadata map[string]interface{},
 ) (*Embedding, error) {
 	embedding, err := GetSingleEmbedding(ctx, text)
 	if err != nil {
@@ -85,14 +88,22 @@ func AddEmbedding(
 		return nil, err
 	}
 
+	// calculate hash
+	metadataHash, err := utils.CalculateMetadataHash(metadata)
+	if err != nil {
+		log.Println("Error calculating hash on Metadata: ", err)
+	}
+
 	embeddingRecord, err := q.CreateEmbedding(ctx, CreateEmbeddingParams{
 		DocumentID: pgtype.Int8{
 			Int64: doc.ID,
 			Valid: true,
 		},
-		ModelName: "all-MiniLM-L6-v2",
-		ChunkText: text,
-		Embedding: pgvector.NewVector(embedding),
+		ModelName:    "all-MiniLM-L6-v2",
+		ChunkText:    text,
+		Embedding:    pgvector.NewVector(embedding),
+		Metadata:     metadata,
+		MetadataHash: metadataHash,
 	})
 	if err != nil {
 		return nil, err

@@ -1,5 +1,5 @@
 CREATE EXTENSION IF NOT EXISTS vector;
-CREATE EXTENSION IF NOT EXISTS pg_trgm;  -- For text search optimisation
+CREATE EXTENSION IF NOT EXISTS pg_trgm;  -- For text search optimization
 
 CREATE TYPE embedding_model AS ENUM (
     'all-MiniLM-L6-v2',
@@ -30,10 +30,13 @@ CREATE TABLE embeddings (
     document_id BIGINT REFERENCES documents(id) ON DELETE CASCADE,
     model_name embedding_model NOT NULL,
     embedding vector(384) NOT NULL,
-    chunk_text TEXT NOT NULL,       -- Postgres will automatically use TOAST for large text values
-    chunk_size INTEGER NOT NULL,    -- Size of chunk in bytes
-    created_at TIMESTAMPTZ DEFAULT CURRENT_ [!TIP]
-    > EATE TABLE api_usage (
+    chunk_text TEXT NOT NULL, -- postgres will automatically  [!TIP]
+    > rge text values
+    chunk_size INTEGER NOT NULL,  -- Size of chunk in bytes
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE api_usage (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT REFERENCES users(id) ON DELETE CASCADE UNIQUE,
     request_count BIGINT DEFAULT 0,  

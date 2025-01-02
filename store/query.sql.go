@@ -45,18 +45,22 @@ INSERT INTO embeddings (
     model_name,
     chunk_text, 
     embedding,
-    chunk_size
+    chunk_size, 
+    metadata, 
+    metadata_hash
 ) VALUES (
-    $1, $2, $3, $4, length($3)
+    $1, $2, $3, $4, length($3), $5, $6
 )
-RETURNING id, document_id, model_name, embedding, chunk_text, chunk_size, created_at
+RETURNING id, document_id, model_name, embedding, chunk_text, chunk_size, created_at, metadata, metadata_hash
 `
 
 type CreateEmbeddingParams struct {
-	DocumentID pgtype.Int8
-	ModelName  EmbeddingModel
-	ChunkText  string
-	Embedding  pgvector.Vector
+	DocumentID   pgtype.Int8
+	ModelName    EmbeddingModel
+	ChunkText    string
+	Embedding    pgvector.Vector
+	Metadata     []byte
+	MetadataHash pgtype.Text
 }
 
 func (q *Queries) CreateEmbedding(ctx context.Context, arg CreateEmbeddingParams) (Embedding, error) {
@@ -65,6 +69,8 @@ func (q *Queries) CreateEmbedding(ctx context.Context, arg CreateEmbeddingParams
 		arg.ModelName,
 		arg.ChunkText,
 		arg.Embedding,
+		arg.Metadata,
+		arg.MetadataHash,
 	)
 	var i Embedding
 	err := row.Scan(
@@ -75,6 +81,8 @@ func (q *Queries) CreateEmbedding(ctx context.Context, arg CreateEmbeddingParams
 		&i.ChunkText,
 		&i.ChunkSize,
 		&i.CreatedAt,
+		&i.Metadata,
+		&i.MetadataHash,
 	)
 	return i, err
 }
@@ -293,7 +301,7 @@ func (q *Queries) GetDocument(ctx context.Context, arg GetDocumentParams) (Docum
 }
 
 const getEmbedding = `-- name: GetEmbedding :one
-SELECT e.id, e.document_id, e.model_name, e.embedding, e.chunk_text, e.chunk_size, e.created_at FROM embeddings e
+SELECT e.id, e.document_id, e.model_name, e.embedding, e.chunk_text, e.chunk_size, e.created_at, e.metadata, e.metadata_hash FROM embeddings e
 JOIN documents d ON d.id = e.document_id
 WHERE e.id = $1 AND d.user_id = $2 LIMIT 1
 `
@@ -314,6 +322,8 @@ func (q *Queries) GetEmbedding(ctx context.Context, arg GetEmbeddingParams) (Emb
 		&i.ChunkText,
 		&i.ChunkSize,
 		&i.CreatedAt,
+		&i.Metadata,
+		&i.MetadataHash,
 	)
 	return i, err
 }
@@ -410,7 +420,7 @@ func (q *Queries) IncrementAPIUsage(ctx context.Context, userID pgtype.Int8) (Ap
 }
 
 const listDocumentEmbeddings = `-- name: ListDocumentEmbeddings :many
-SELECT e.id, e.document_id, e.model_name, e.embedding, e.chunk_text, e.chunk_size, e.created_at FROM embeddings e
+SELECT e.id, e.document_id, e.model_name, e.embedding, e.chunk_text, e.chunk_size, e.created_at, e.metadata, e.metadata_hash FROM embeddings e
 JOIN documents d ON d.id = e.document_id
 WHERE e.document_id = $1 AND d.user_id = $2
 `
@@ -437,6 +447,8 @@ func (q *Queries) ListDocumentEmbeddings(ctx context.Context, arg ListDocumentEm
 			&i.ChunkText,
 			&i.ChunkSize,
 			&i.CreatedAt,
+			&i.Metadata,
+			&i.MetadataHash,
 		); err != nil {
 			return nil, err
 		}

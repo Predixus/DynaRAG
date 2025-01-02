@@ -31,9 +31,11 @@ INSERT INTO embeddings (
     model_name,
     chunk_text, 
     embedding,
-    chunk_size
+    chunk_size, 
+    metadata, 
+    metadata_hash
 ) VALUES (
-    $1, $2, $3, $4, length($3)
+    $1, $2, $3, $4, length($3), $5, $6
 )
 RETURNING *;
 

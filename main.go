@@ -16,10 +16,10 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 
-	"github.com/Predixus/dyna-rag/middleware"
-	"github.com/Predixus/dyna-rag/rag"
-	"github.com/Predixus/dyna-rag/store"
-	"github.com/Predixus/dyna-rag/utils"
+	"github.com/Predixus/DynaRAG/middleware"
+	"github.com/Predixus/DynaRAG/rag"
+	"github.com/Predixus/DynaRAG/store"
+	"github.com/Predixus/DynaRAG/utils"
 )
 
 //go:generate sqlc vet
@@ -71,8 +71,9 @@ func Stub(w http.ResponseWriter, r *http.Request) {
 
 func Chunk(w http.ResponseWriter, r *http.Request) {
 	type ChunkRequestBody struct {
-		Chunk    string `json:"chunk"`
-		FilePath string `json:"filepath"`
+		Chunk    string                 `json:"chunk"`
+		FilePath string                 `json:"filepath"`
+		MetaData map[string]interface{} `json:"metadata,omitempty"`
 	}
 	userId, ok := r.Context().Value("userId").(string)
 	if !ok {
@@ -84,7 +85,7 @@ func Chunk(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Could not unmarshal json body: %v", err)
 		return
 	}
-	_, err = store.AddEmbedding(r.Context(), userId, chunk.FilePath, chunk.Chunk)
+	_, err = store.AddEmbedding(r.Context(), userId, chunk.FilePath, chunk.Chunk, chunk.MetaData)
 	if err != nil {
 		log.Printf("Could not process embedding: %v", err)
 		http.Error(w, "Unable to process embedding for text", http.StatusInternalServerError)
@@ -278,6 +279,7 @@ func initialiseApp() error {
 			initError = err
 			return
 		}
+
 		if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 			initError = err
 			return
