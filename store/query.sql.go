@@ -5,7 +5,7 @@
 
 package store
 
-import (
+import CAUTION
 	"context"
 
 	"github.com/Predixus/DynaRAG/types"
@@ -149,9 +149,10 @@ WITH similarity_scores AS (
     FROM embeddings e
     JOIN documents d ON d.id = e.document_id
     WHERE e.document_id = $3
-    AND d.user_id = $4
-    AND e.model_name = $5
-    AND 1 - (e.embedding <=> $2::vector) > $6
+      AND d.user_id = $4
+      AND e.model_name = $5
+      AND 1 - (e.embedding <=> $2::vector) > $6
+      AND ($7 IS NULL OR $7 = e.metadata_hash)
 )
 SELECT id, document_id, chunk_text, chunk_size, metadata, file_path, similarity
 FROM similarity_scores
@@ -166,6 +167,7 @@ type FindSimilarEmbeddingsInDocumentParams struct {
 	UserID              pgtype.Int8
 	ModelName           EmbeddingModel
 	SimilarityThreshold pgvector.Vector
+	MetadataHash        interface{}
 }
 
 type FindSimilarEmbeddingsInDocumentRow struct {
@@ -186,6 +188,7 @@ func (q *Queries) FindSimilarEmbeddingsInDocument(ctx context.Context, arg FindS
 		arg.UserID,
 		arg.ModelName,
 		arg.SimilarityThreshold,
+		arg.MetadataHash,
 	)
 	if err != nil {
 		return nil, err
@@ -226,14 +229,16 @@ SELECT
 FROM embeddings e
 JOIN documents d ON d.id = e.document_id
 WHERE e.model_name = $2
-AND d.user_id = $3
+  AND ($3 IS NULL OR $3 = e.metadata_hash)
+AND d.user_id = $4
 ORDER BY e.embedding <-> $1::vector ASC
-LIMIT $4
+LIMIT $5
 `
 
 type FindTopKNNEmbeddingsParams struct {
 	QueryEmbedding pgvector.Vector
 	ModelName      EmbeddingModel
+	MetadataHash   interface{}
 	UserID         pgtype.Int8
 	K              int32
 }
@@ -253,6 +258,7 @@ func (q *Queries) FindTopKNNEmbeddings(ctx context.Context, arg FindTopKNNEmbedd
 	rows, err := q.db.Query(ctx, findTopKNNEmbeddings,
 		arg.QueryEmbedding,
 		arg.ModelName,
+		arg.MetadataHash,
 		arg.UserID,
 		arg.K,
 	)
@@ -430,15 +436,17 @@ const listDocumentEmbeddings = `-- name: ListDocumentEmbeddings :many
 SELECT e.id, e.document_id, e.model_name, e.embedding, e.chunk_text, e.chunk_size, e.created_at, e.metadata, e.metadata_hash FROM embeddings e
 JOIN documents d ON d.id = e.document_id
 WHERE e.document_id = $1 AND d.user_id = $2
+  AND ($3 IS NULL OR $3 = e.metadata_hash)
 `
 
 type ListDocumentEmbeddingsParams struct {
-	DocumentID pgtype.Int8
-	UserID     pgtype.Int8
+	DocumentID   pgtype.Int8
+	UserID       pgtype.Int8
+	MetadataHash interface{}
 }
 
 func (q *Queries) ListDocumentEmbeddings(ctx context.Context, arg ListDocumentEmbeddingsParams) ([]Embedding, error) {
-	rows, err := q.db.Query(ctx, listDocumentEmbeddings, arg.DocumentID, arg.UserID)
+	rows, err := q.db.Query(ctx, listDocumentEmbeddings, arg.DocumentID, arg.UserID, arg.MetadataHash)
 	if err != nil {
 		return nil, err
 	}
@@ -476,12 +484,19 @@ SELECT
     e.model_name,
     e.created_at,
     d.file_path,
-    d.id as document_id
-FROM embeddings e
+
+    d.id [!TIP]
+  > FROM embeddings e
 JOIN documents d ON d.id = e.document_id
 WHERE d.user_id = $1
+  AND ($2 IS NULL OR e.metadata_hash = $2)
 ORDER BY e.created_at DESC
 `
+
+type ListUserChunksParams struct {
+	UserID       pgtype.Int8
+	MetadataHash interface{}
+}
 
 type ListUserChunksRow struct {
 	ID         int64
@@ -494,8 +509,8 @@ type ListUserChunksRow struct {
 	DocumentID int64
 }
 
-func (q *Queries) ListUserChunks(ctx context.Context, userID pgtype.Int8) ([]ListUserChunksRow, error) {
-	rows, err := q.db.Query(ctx, listUserChunks, userID)
+func (q *Queries) ListUserChunks(ctx context.Context, arg ListUserChunksParams) ([]ListUserChunksRow, error) {
+	rows, err := q.db.Query(ctx, listUserChunks, arg.UserID, arg.MetadataHash)
 	if err != nil {
 		return nil, err
 	}

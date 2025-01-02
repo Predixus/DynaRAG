@@ -53,7 +53,8 @@ AND e.document_id = d.id;
 -- name: ListDocumentEmbeddings :many
 SELECT e.* FROM embeddings e
 JOIN documents d ON d.id = e.document_id
-WHERE e.document_id = $1 AND d.user_id = $2;
+WHERE e.document_id = $1 AND d.user_id = $2
+  AND (sqlc.arg(metadata_hash) IS NULL OR sqlc.arg(metadata_hash) = e.metadata_hash);
 
 -- name: GetUserStorageStats :one
 SELECT 
@@ -79,6 +80,7 @@ SELECT
 FROM embeddings e
 JOIN documents d ON d.id = e.document_id
 WHERE e.model_name = sqlc.arg(model_name)
+  AND (sqlc.arg(metadata_hash) IS NULL OR sqlc.arg(metadata_hash) = e.metadata_hash)
 AND d.user_id = sqlc.arg(user_id)
 ORDER BY e.embedding <-> sqlc.arg(query_embedding)::vector ASC
 LIMIT sqlc.arg(k);
@@ -96,9 +98,10 @@ WITH similarity_scores AS (
     FROM embeddings e
     JOIN documents d ON d.id = e.document_id
     WHERE e.document_id = sqlc.arg(document_id)
-    AND d.user_id = sqlc.arg(user_id)
-    AND e.model_name = sqlc.arg(model_name)
-    AND 1 - (e.embedding <=> sqlc.arg(query_embedding)::vector) > sqlc.arg(similarity_threshold)
+      AND d.user_id = sqlc.arg(user_id)
+      AND e.model_name = sqlc.arg(model_name)
+      AND 1 - (e.embedding <=> sqlc.arg(query_embedding)::vector) > sqlc.arg(similarity_threshold)
+      AND (sqlc.arg(metadata_hash) IS NULL OR sqlc.arg(metadata_hash) = e.metadata_hash)
 )
 SELECT *
 FROM similarity_scores
@@ -131,6 +134,7 @@ SELECT
 FROM embeddings e
 JOIN documents d ON d.id = e.document_id
 WHERE d.user_id = sqlc.arg(user_id)
+  AND (sqlc.arg(metadata_hash) IS NULL OR e.metadata_hash = sqlc.arg(metadata_hash))
 ORDER BY e.created_at DESC;
 
 -- name: IncrementAPIUsage :one

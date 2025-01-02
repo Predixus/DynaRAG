@@ -283,11 +283,15 @@ func ListUserChunks(ctx context.Context, userId string) ([]ListUserChunksRow, er
 	}
 
 	// Get all chunks for the user
-	chunks, err := q.ListUserChunks(ctx, pgtype.Int8{
-		Int64: user.ID,
-		Valid: true,
+	chunks, err := q.ListUserChunks(ctx, ListUserChunksParams{
+		UserID: pgtype.Int8{
+			Int64: user.ID,
+			Valid: true,
+		},
+		MetadataHash: "1234",
 	})
 	if err != nil {
+		log.Println("Error when listing user chunks")
 		return nil, err
 	}
 

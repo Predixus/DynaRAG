@@ -239,11 +239,23 @@ func GetUserStatsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ListUserChunksHandler(w http.ResponseWriter, r *http.Request) {
+	type ListUserChunksRequestBody struct {
+		Metadata map[string]interface{} `json:"metadata,omitempty"`
+	}
+
 	userId, ok := r.Context().Value("userId").(string)
 	if !ok {
 		http.Error(w, "Unauthorised", http.StatusBadRequest)
 		return
 	}
+	if r.Body != nil && r.ContentLength != 0 {
+		chk, err := utils.ParseJsonBody[ListUserChunksRequestBody](w, r)
+		if err != nil {
+			return
+		}
+		log.Println(chk)
+	}
+
 	chunks, err := store.ListUserChunks(r.Context(), userId)
 	if err != nil {
 		log.Printf("Failed to list user chunks: %v", err)
