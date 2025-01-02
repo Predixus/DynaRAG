@@ -5,7 +5,7 @@
 
 package store
 
-import CAUTION
+import (
 	"context"
 
 	"github.com/Predixus/DynaRAG/types"
@@ -152,7 +152,7 @@ WITH similarity_scores AS (
       AND d.user_id = $4
       AND e.model_name = $5
       AND 1 - (e.embedding <=> $2::vector) > $6
-      AND ($7 IS NULL OR $7 = e.metadata_hash)
+      AND ($7::text IS NULL OR $7::text = e.metadata_hash)
 )
 SELECT id, document_id, chunk_text, chunk_size, metadata, file_path, similarity
 FROM similarity_scores
@@ -167,7 +167,7 @@ type FindSimilarEmbeddingsInDocumentParams struct {
 	UserID              pgtype.Int8
 	ModelName           EmbeddingModel
 	SimilarityThreshold pgvector.Vector
-	MetadataHash        interface{}
+	MetadataHash        pgtype.Text
 }
 
 type FindSimilarEmbeddingsInDocumentRow struct {
@@ -229,7 +229,7 @@ SELECT
 FROM embeddings e
 JOIN documents d ON d.id = e.document_id
 WHERE e.model_name = $2
-  AND ($3 IS NULL OR $3 = e.metadata_hash)
+  AND ($3::text IS NULL OR $3::text = e.metadata_hash)
 AND d.user_id = $4
 ORDER BY e.embedding <-> $1::vector ASC
 LIMIT $5
@@ -238,7 +238,7 @@ LIMIT $5
 type FindTopKNNEmbeddingsParams struct {
 	QueryEmbedding pgvector.Vector
 	ModelName      EmbeddingModel
-	MetadataHash   interface{}
+	MetadataHash   pgtype.Text
 	UserID         pgtype.Int8
 	K              int32
 }
@@ -436,13 +436,13 @@ const listDocumentEmbeddings = `-- name: ListDocumentEmbeddings :many
 SELECT e.id, e.document_id, e.model_name, e.embedding, e.chunk_text, e.chunk_size, e.created_at, e.metadata, e.metadata_hash FROM embeddings e
 JOIN documents d ON d.id = e.document_id
 WHERE e.document_id = $1 AND d.user_id = $2
-  AND ($3 IS NULL OR $3 = e.metadata_hash)
+  AND ($3::text IS NULL OR $3::text = e.metadata_hash)
 `
 
 type ListDocumentEmbeddingsParams struct {
 	DocumentID   pgtype.Int8
 	UserID       pgtype.Int8
-	MetadataHash interface{}
+	MetadataHash pgtype.Text
 }
 
 func (q *Queries) ListDocumentEmbeddings(ctx context.Context, arg ListDocumentEmbeddingsParams) ([]Embedding, error) {
@@ -484,18 +484,17 @@ SELECT
     e.model_name,
     e.created_at,
     d.file_path,
-
-    d.id [!TIP]
-  > FROM embeddings e
+    d.id as document_id
+FROM embeddings e
 JOIN documents d ON d.id = e.document_id
 WHERE d.user_id = $1
-  AND ($2 IS NULL OR e.metadata_hash = $2)
+  AND ($2::text IS NULL OR e.metadata_hash = $2::text)
 ORDER BY e.created_at DESC
 `
 
 type ListUserChunksParams struct {
 	UserID       pgtype.Int8
-	MetadataHash interface{}
+	MetadataHash pgtype.Text
 }
 
 type ListUserChunksRow struct {

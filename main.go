@@ -19,6 +19,7 @@ import (
 	"github.com/Predixus/DynaRAG/middleware"
 	"github.com/Predixus/DynaRAG/rag"
 	"github.com/Predixus/DynaRAG/store"
+	"github.com/Predixus/DynaRAG/types"
 	"github.com/Predixus/DynaRAG/utils"
 )
 
@@ -94,8 +95,9 @@ func Chunk(w http.ResponseWriter, r *http.Request) {
 
 func Similar(w http.ResponseWriter, r *http.Request) {
 	type SimilarityRequest struct {
-		Text string `json:"text"` // The text to compare against
-		K    int8   `json:"k"`    // Number of similar results to return
+		Text     string         `json:"text"`               // the text to compare against
+		K        int8           `json:"k"`                  // number of similar results to return
+		Metadata *types.JSONMap `json:"metadata,omitempty"` // any metadata to match to
 	}
 	userId, ok := r.Context().Value("userId").(string)
 	if !ok {
@@ -104,13 +106,8 @@ func Similar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req, err := utils.ParseJsonBody[SimilarityRequest](w, r)
-	if err != nil {
-		log.Printf("Could not unmarshal json body: %v", err)
-		return
-	}
-
 	log.Println("Gathering similar documents")
-	res, err := store.GetTopKEmbeddings(r.Context(), userId, req.Text, req.K)
+	res, err := store.GetTopKEmbeddings(r.Context(), userId, req.Text, req.K, req.Metadata)
 	if err != nil {
 		log.Printf("Could not get top K embeddings: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -130,7 +127,8 @@ func Similar(w http.ResponseWriter, r *http.Request) {
 
 func Query(w http.ResponseWriter, r *http.Request) {
 	type QueryRequestBody struct {
-		Query string `json:"query"`
+		Query    string         `json:"query"`
+		Metadata *types.JSONMap `json:"metadata,omitempty"`
 	}
 	userId, ok := r.Context().Value("userId").(string)
 	if !ok {
@@ -145,7 +143,7 @@ func Query(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("Gathering similar documents")
-	res, err := store.GetTopKEmbeddings(r.Context(), userId, q.Query, 10)
+	res, err := store.GetTopKEmbeddings(r.Context(), userId, q.Query, 10, q.Metadata)
 	if err != nil {
 		log.Printf("Could not get top K embeddings: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -248,15 +246,16 @@ func ListUserChunksHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unauthorised", http.StatusBadRequest)
 		return
 	}
+	var metadata *types.JSONMap
 	if r.Body != nil && r.ContentLength != 0 {
-		chk, err := utils.ParseJsonBody[ListUserChunksRequestBody](w, r)
+		spec, err := utils.ParseJsonBody[ListUserChunksRequestBody](w, r)
 		if err != nil {
 			return
 		}
-		log.Println(chk)
+		metadata = (*types.JSONMap)(&spec.Metadata)
 	}
 
-	chunks, err := store.ListUserChunks(r.Context(), userId)
+	chunks, err := store.ListUserChunks(r.Context(), userId, metadata)
 	if err != nil {
 		log.Printf("Failed to list user chunks: %v", err)
 		http.Error(w, "Unable to retrieve user chunks", http.StatusInternalServerError)

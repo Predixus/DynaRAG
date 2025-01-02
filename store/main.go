@@ -12,6 +12,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/pgvector/pgvector-go"
 
+	"github.com/Predixus/DynaRAG/types"
 	"github.com/Predixus/DynaRAG/utils"
 )
 
@@ -135,6 +136,7 @@ func GetTopKEmbeddings(
 	userId string,
 	text string,
 	k int8,
+	metadata *types.JSONMap,
 ) ([]FindTopKNNEmbeddingsRow, error) {
 	embedding, err := GetSingleEmbedding(ctx, text)
 	if err != nil {
@@ -154,6 +156,21 @@ func GetTopKEmbeddings(
 		return nil, err
 	}
 
+	// calculate metadatahash
+	var metadataHashPtr *string
+	if metadata != nil {
+		jsonMetadataBytes, err := json.Marshal(metadata)
+		if err != nil {
+			return nil, err
+		}
+		metadataHash, err := utils.CalculateMetadataHash(jsonMetadataBytes)
+		log.Println("MetadataHash: ", metadataHash)
+		metadataHashPtr = &metadataHash
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return q.FindTopKNNEmbeddings(ctx, FindTopKNNEmbeddingsParams{
 		QueryEmbedding: pgvector.NewVector(embedding),
 		ModelName:      "all-MiniLM-L6-v2",
@@ -162,6 +179,15 @@ func GetTopKEmbeddings(
 			Valid: true,
 		},
 		K: int32(k),
+		MetadataHash: pgtype.Text{
+			Valid: metadataHashPtr != nil,
+			String: func() string {
+				if metadataHashPtr != nil {
+					return *metadataHashPtr
+				}
+				return ""
+			}(),
+		},
 	})
 }
 
@@ -267,7 +293,11 @@ func GetUserStats(ctx context.Context, userId string) (*GetUserStatsRow, error) 
 	return &stats, nil
 }
 
-func ListUserChunks(ctx context.Context, userId string) ([]ListUserChunksRow, error) {
+func ListUserChunks(
+	ctx context.Context,
+	userId string,
+	metadata *types.JSONMap,
+) ([]ListUserChunksRow, error) {
 	conn, err := pgx.Connect(ctx, postgres_conn_str)
 	if err != nil {
 		return nil, err
@@ -282,13 +312,32 @@ func ListUserChunks(ctx context.Context, userId string) ([]ListUserChunksRow, er
 		return nil, err
 	}
 
+	// calculate metadatahash
+	var metadataHashPtr *string
+	if metadata != nil {
+		jsonMetadataBytes, err := json.Marshal(metadata)
+		if err != nil {
+			return nil, err
+		}
+		metadataHash, err := utils.CalculateMetadataHash(jsonMetadataBytes)
+		log.Println("MetadataHash: ", metadataHash)
+		metadataHashPtr = &metadataHash
+		if err != nil {
+			return nil, err
+		}
+	}
 	// Get all chunks for the user
 	chunks, err := q.ListUserChunks(ctx, ListUserChunksParams{
 		UserID: pgtype.Int8{
 			Int64: user.ID,
 			Valid: true,
 		},
-		MetadataHash: "1234",
+		MetadataHash: pgtype.Text{String: func() string {
+			if metadataHashPtr != nil {
+				return *metadataHashPtr
+			}
+			return ""
+		}(), Valid: metadataHashPtr != nil},
 	})
 	if err != nil {
 		log.Println("Error when listing user chunks")
