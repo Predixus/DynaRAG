@@ -33,15 +33,15 @@ a vector store, with optional LLM summarisation capabilities.
 ## Core Features
 
 - Naive RAG with Go-managed feature extraction models (props to
-[hugot](https://github.com/knights-analytics/hugot) for building awesome go)
-- D [!TIP]
-> PGVector
+[hugot](https://github.com/knights-analytics/hugot) for building awesome go Onnz bindings)
+> PGVector based vector store
 - Rate limiting via Redis
-- Data separation by `UserId`
+- Chunk separation by `UserId`
 - LLM provider integration for summarisation:
   - Groq
   - OpenAI (coming in 2025)
   - Anthropic (coming in 2025)
+  - Ollama (coming in 2025)
 
 ## Technical Benefits
 
