@@ -34,7 +34,7 @@ a vector store, with optional LLM summarisation capabilities.
 
 - Naive RAG with Go-managed feature extraction models (props to
 [hugot](https://github.com/knights-analytics/hugot) for building awesome go Onnz bindings)
-> PGVector based vector store
+- PGVector based vector store
 - Rate limiting via Redis
 - Chunk separation by `UserId`
 - LLM provider integration for summarisation:
