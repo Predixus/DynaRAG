@@ -119,15 +119,22 @@ cp ./.env.example ./.env
 POSTGRES_CONN_STR=postgresql://admin:root@localhost:5053/main
 REDIS_URL=redis://:53c2b86b1b3e8e91ac502c54cf49fcfd91e7d1271130b4de@localhost:6380
 ```
+These URLs match the credentials configured in the `docker-compose.yml` file.
 
 4. Install required binaries:
-```bash
-make setup
-```
+Collect the correct `onnxruntime.*.[tgz/zip]` file for your operating system and plafrom from 
+the Microsoft/onnxruntime [Releases Page](https://github.com/microsoft/onnxruntime/releases).
+
+Extract the contents of this file and place the `onnxruntime.so` library inside `.bin/`.
+
+Do the same with the the relevant `tokenizers.*.tar.gz` static object file from the `daulet/tokenizers`
+[Releases Page](https://github.com/daulet/tokenizers/releases). Place `tokenizers.a` inside
+`./bin/`.
 
 > [!NOTE]
-> Binary builds are Linux-specific. MacOS and Windows users need to build
-> Onnx and Tokenizer binaries manually.
+> The `tokenizers` library only has static objects built for Linux (amd64/arm64/x86_64/aarch64) and
+MacOS (darwin-arm64/darwin-aarch64). If you are running DynaRAG on Windows, either use WSL (Windows
+Subssystem for Linux) or build the tokenizers static object for Windows.
 
 ### Running the API
 
