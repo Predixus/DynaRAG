@@ -12,6 +12,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/pgvector/pgvector-go"
 
+	"github.com/Predixus/DynaRAG/embed"
 	"github.com/Predixus/DynaRAG/types"
 	"github.com/Predixus/DynaRAG/utils"
 )
@@ -19,7 +20,7 @@ import (
 var (
 	once_v2           sync.Once
 	postgres_conn_str string
-	embedder          *Embedder
+	embedder          *embed.Embedder
 )
 
 func setup() string {
@@ -34,7 +35,7 @@ func init() {
 	godotenv.Load()
 	postgres_conn_str = setup()
 	var err error
-	embedder, err = GetEmbedder()
+	embedder, err = embed.GetEmbedder()
 	if err != nil {
 		log.Fatalf("Failed to initialize embedder: %v", err)
 	}
