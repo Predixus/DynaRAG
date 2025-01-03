@@ -88,7 +88,7 @@ Choose the deployment option that best suits your needs:
 - Coming soon
 
 ### Run from Source
-- Follow the development guide below
+- Follow the [development guide](#development-guide) below
 
 ## API Docs
 - Coming Soon.
@@ -97,7 +97,6 @@ Choose the deployment option that best suits your needs:
 
 ### Prerequisites
 
-- `cmake`
 - Docker with `docker compose`
 - [`sqlc`](https://docs.sqlc.dev/en/stable/overview/install.html)
 - [`air`](https://github.com/air-verse/air)
@@ -186,6 +185,28 @@ curl -X GET "http://localhost:7890/stats" \
 Additional options:
 - Use [Postman](https://predixus.postman.co/workspace/Predixus~6a7e467f-45da-4e1d-8583-cc2611bf0431/collection/35165780-5ace5502-2a05-4179-a0c8-ff27dba0df9b?action=share&creator=35165780)
 - Use the official [Python Client](https://github.com/Predixus/DynaRAG-Python-Client)
+
+## Module Structure
+The DynaRAG Go! module is split into several packages:
+- `llm` - defines code to interface directly with the LLM provider (Groq, Ollama etc.)
+- `middleware` - defines middleware that is run on each http request
+- `store` - the interface to the PGVector store. The home of the sqlc auto-generated code and the migrations
+managed by `go-migrate`
+- `embed` - the embedding process powered by [Hugot](https://github.com/knights-analytics/hugot)
+- `rag` - code that defines the final summarisation layer, along with system prompts
+- `types` - globally used types, some of which are used by `sqlc` during code generation
+- `utils` - miscellaneous utilities
+
+`main.go` defines the HTTP server, where functionality from the various modules are stitched together.
+
+`query.sql` defines raw pSQL queries that drive the interactions with the PGVector instance.
+
+### Feature Extraction / Embedding
+Feature extraction (conversion of the text chunks into vectors) is performed through Hugot via the
+Onnx runtime.
+
+During startup of the HTTP server, the configured models will be downloaded from Huggingface and
+stored in the ./models/ folder. This will only be done once to obtain the relevant .onnx binaries.
 
 ## License
 
