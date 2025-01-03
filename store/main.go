@@ -92,7 +92,7 @@ func AddEmbedding(
 
 	// calculate hash
 	var metadataHash string = ""
-	if len(metadata) != 0 {
+	if metadata != nil {
 		metadataJsonBytes, err := json.Marshal(metadata)
 		if err != nil {
 			log.Println("Error marshalling metadata: ", err)
@@ -104,6 +104,8 @@ func AddEmbedding(
 			log.Println("Error calculating hash on Metadata: ", err)
 			return nil, err
 		}
+	} else {
+		metadata = make(map[string]interface{})
 	}
 
 	embeddingRecord, err := q.CreateEmbedding(ctx, CreateEmbeddingParams{

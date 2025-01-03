@@ -86,6 +86,7 @@ func Chunk(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Could not unmarshal json body: %v", err)
 		return
 	}
+
 	_, err = store.AddEmbedding(r.Context(), userId, chunk.FilePath, chunk.Chunk, chunk.MetaData)
 	if err != nil {
 		log.Printf("Could not process embedding: %v", err)
