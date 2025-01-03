@@ -88,7 +88,7 @@ Choose the deployment option that best suits your needs:
 - Coming soon
 
 ### Run from Source
-- Follow the development guide below
+- Follow the [development guide](#development-guide) below
 
 ## API Docs
 - Coming Soon.
@@ -97,7 +97,6 @@ Choose the deployment option that best suits your needs:
 
 ### Prerequisites
 
-- `cmake`
 - Docker with `docker compose`
 - [`sqlc`](https://docs.sqlc.dev/en/stable/overview/install.html)
 - [`air`](https://github.com/air-verse/air)
@@ -186,6 +185,10 @@ curl -X GET "http://localhost:7890/stats" \
 Additional options:
 - Use [Postman](https://predixus.postman.co/workspace/Predixus~6a7e467f-45da-4e1d-8583-cc2611bf0431/collection/35165780-5ace5502-2a05-4179-a0c8-ff27dba0df9b?action=share&creator=35165780)
 - Use the official [Python Client](https://github.com/Predixus/DynaRAG-Python-Client)
+
+### Developing - Module Structure
+Now that you are up and running with the 
+
 
 ## License
 
