@@ -229,8 +229,8 @@ SELECT
 FROM embeddings e
 JOIN documents d ON d.id = e.document_id
 WHERE e.model_name = $2
-  AND ($3::text IS NULL OR $3::text = e.metadata_hash)
-AND d.user_id = $4
+  AND d.user_id = $3
+  AND ($4::text IS NULL OR $4::text = e.metadata_hash)
 ORDER BY e.embedding <-> $1::vector ASC
 LIMIT $5
 `
@@ -238,8 +238,8 @@ LIMIT $5
 type FindTopKNNEmbeddingsParams struct {
 	QueryEmbedding pgvector.Vector
 	ModelName      EmbeddingModel
-	MetadataHash   pgtype.Text
 	UserID         pgtype.Int8
+	MetadataHash   pgtype.Text
 	K              int32
 }
 
@@ -258,8 +258,8 @@ func (q *Queries) FindTopKNNEmbeddings(ctx context.Context, arg FindTopKNNEmbedd
 	rows, err := q.db.Query(ctx, findTopKNNEmbeddings,
 		arg.QueryEmbedding,
 		arg.ModelName,
-		arg.MetadataHash,
 		arg.UserID,
+		arg.MetadataHash,
 		arg.K,
 	)
 	if err != nil {

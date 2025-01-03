@@ -104,6 +104,8 @@ func AddEmbedding(
 			log.Println("Error calculating hash on Metadata: ", err)
 			return nil, err
 		}
+	} else {
+		metadata = make(map[string]interface{})
 	}
 
 	embeddingRecord, err := q.CreateEmbedding(ctx, CreateEmbeddingParams{
