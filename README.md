@@ -2,7 +2,7 @@
 
 ![GitHub Release](https://img.shields.io/github/v/release/Predixus/DynaRAG)
 
-A _fast_, _dynamic_, and _production-ready_ RAG as a service.
+A _fast_, _dynamic_, and _production-ready_ RAG backend - so you can focus on the chunks.
 
 > [!CAUTION]
 > DynaRAG is in a Pre-release state. Full release and stability will arrive soon.
@@ -26,9 +26,13 @@ A _fast_, _dynamic_, and _production-ready_ RAG as a service.
 
 ## What is DynaRAG?
 
-DynaRAG is a RAG (Retrieval-Augmented Generation) as a service that implements a naive approach.
-It focuses on providing a highly performant service that allows quick addition of text chunks to
-a vector store, with optional LLM summarisation capabilities.
+DynaRAG is a RAG (Retrieval-Augmented Generation) backend that implements a simple naive approach.
+
+In this way, it is no more complex than the simplest RAG examples that you may find on Haystack or Langchain.
+
+Instead, DynaRAG focuses on providing a highly performant backend for adding, retrieving and filtering text chunks.
+
+DynaRAG does this by pushing the inference and database-query latencies into the parts of the RAG pipeline that yield the lowest round trip time.
 
 ## Core Features
 
