@@ -113,11 +113,29 @@ func AddEmbedding(
 		return nil, err
 	}
 
+	result := &Embedding{
+		ID:           embeddingRecord.ID,
+		DocumentID:   embeddingRecord.DocumentID,
+		ModelName:    embeddingRecord.ModelName,
+		Embedding:    embeddingRecord.Embedding,
+		ChunkText:    embeddingRecord.ChunkText,
+		ChunkSize:    embeddingRecord.ChunkSize,
+		CreatedAt:    embeddingRecord.CreatedAt,
+		Metadata:     embeddingRecord.Metadata,
+		MetadataHash: embeddingRecord.MetadataHash,
+		EmbeddingText: func() pgtype.Text {
+			if embeddingRecord.EmbeddingText.Valid {
+				return embeddingRecord.EmbeddingText
+			}
+			return pgtype.Text{String: "", Valid: false}
+		}(),
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 
-	return &embeddingRecord, nil
+	return result, nil
 }
 
 func GetTopKEmbeddings(
