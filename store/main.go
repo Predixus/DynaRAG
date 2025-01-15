@@ -51,7 +51,6 @@ func GetSingleEmbedding(ctx context.Context, text string) ([]float32, error) {
 
 func AddEmbedding(
 	ctx context.Context,
-	userId string,
 	filePath string,
 	text string,
 	metadata map[string]interface{},
@@ -136,7 +135,6 @@ func AddEmbedding(
 
 func GetTopKEmbeddings(
 	ctx context.Context,
-	userId string,
 	text string,
 	k int8,
 	metadata *types.JSONMap,

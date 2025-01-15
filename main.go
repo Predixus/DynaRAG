@@ -1,10 +1,11 @@
 package main
 
 import (
+	"context"
 	_ "embed"
 	"encoding/json"
-	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -16,7 +17,6 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 
-	"github.com/Predixus/DynaRAG/middleware"
 	"github.com/Predixus/DynaRAG/rag"
 	"github.com/Predixus/DynaRAG/store"
 	"github.com/Predixus/DynaRAG/types"
@@ -55,65 +55,34 @@ func init() {
 	postgres_conn_str, port = setup()
 }
 
-func Stub(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received stub request")
-	w.Write([]byte("Route not Implemented"))
+func Chunk(
+	ctx context.Context,
+	chunk string,
+	filePath string,
+	metadata map[string]interface{},
+) error {
+	_, err := store.AddEmbedding(ctx, filePath, chunk, metadata)
+	if err != nil {
+		slog.Error("Could not process embedding: %v", err)
+		return err
+	}
+	return nil
 }
 
-func Chunk(w http.ResponseWriter, r *http.Request) {
-	type ChunkRequestBody struct {
-		Chunk    string                 `json:"chunk"`
-		FilePath string                 `json:"filepath"`
-		MetaData map[string]interface{} `json:"metadata,omitempty"`
-	}
-	userId, ok := r.Context().Value("userId").(string)
-	if !ok {
-		http.Error(w, "Unauthorised", http.StatusUnauthorized)
-		return
-	}
-	chunk, err := utils.ParseJsonBody[ChunkRequestBody](w, r)
+func Similar(
+	ctx context.Context,
+	text string,
+	k int8,
+	metadata *types.JSONMap,
+) ([]store.FindTopKNNEmbeddingsRow, error) {
+	slog.Info("Gathering similar documents")
+
+	res, err := store.GetTopKEmbeddings(ctx, text, k, metadata)
 	if err != nil {
-		log.Printf("Could not unmarshal json body: %v", err)
-		return
+		slog.Error("Could not get top K embeddings: %v", err)
+		return nil, err
 	}
-
-	_, err = store.AddEmbedding(r.Context(), userId, chunk.FilePath, chunk.Chunk, chunk.MetaData)
-	if err != nil {
-		log.Printf("Could not process embedding: %v", err)
-		http.Error(w, "Unable to process embedding for text", http.StatusInternalServerError)
-	}
-}
-
-func Similar(w http.ResponseWriter, r *http.Request) {
-	type SimilarityRequest struct {
-		Text     string         `json:"text"`               // the text to compare against
-		K        int8           `json:"k"`                  // number of similar results to return
-		Metadata *types.JSONMap `json:"metadata,omitempty"` // any metadata to match to
-	}
-	userId, ok := r.Context().Value("userId").(string)
-	if !ok {
-		http.Error(w, "Unauthorised", http.StatusUnauthorized)
-		return
-	}
-
-	req, err := utils.ParseJsonBody[SimilarityRequest](w, r)
-	log.Println("Gathering similar documents")
-	res, err := store.GetTopKEmbeddings(r.Context(), userId, req.Text, req.K, req.Metadata)
-	if err != nil {
-		log.Printf("Could not get top K embeddings: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	body, err := json.Marshal(res)
-	if err != nil {
-		log.Printf("Could not marshal result into json: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(body)
+	return res, nil
 }
 
 func Query(w http.ResponseWriter, r *http.Request) {
