@@ -72,9 +72,10 @@ func Stub(w http.ResponseWriter, r *http.Request) {
 
 func Chunk(w http.ResponseWriter, r *http.Request) {
 	type ChunkRequestBody struct {
-		Chunk    string                 `json:"chunk"`
-		FilePath string                 `json:"filepath"`
-		MetaData map[string]interface{} `json:"metadata,omitempty"`
+		Chunk         string                 `json:"chunk"`
+		FilePath      string                 `json:"filepath"`
+		EmbeddingText *string                `json:"embedding_text,omitempty"`
+		MetaData      map[string]interface{} `json:"metadata,omitempty"`
 	}
 	userId, ok := r.Context().Value("userId").(string)
 	if !ok {
@@ -87,7 +88,7 @@ func Chunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = store.AddEmbedding(r.Context(), userId, chunk.FilePath, chunk.Chunk, chunk.MetaData)
+	_, err = store.AddEmbedding(r.Context(), userId, chunk.FilePath, chunk.Chunk, chunk.EmbeddingText, chunk.MetaData)
 	if err != nil {
 		log.Printf("Could not process embedding: %v", err)
 		http.Error(w, "Unable to process embedding for text", http.StatusInternalServerError)
