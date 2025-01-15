@@ -287,57 +287,10 @@ func initialiseApp() error {
 			return
 		}
 
-		// setup rate limiter
-		rl, err := middleware.NewRateLimiter(redisUrl, rlWindow, rlMaxRequests)
 		if err != nil {
 			initError = err
 			return
 		}
-
-		// intialise router with all routes
-		router := http.NewServeMux()
-		router.HandleFunc("/", Stub)
-		router.HandleFunc("POST /chunk", Chunk)
-		router.HandleFunc("POST /similar", Similar)
-		router.HandleFunc("POST /query", Query)
-		router.HandleFunc("DELETE /chunks", DeleteChunksForUser)
-		router.HandleFunc("GET /stats", GetUserStatsHandler)
-		router.HandleFunc("GET /chunks", ListUserChunksHandler)
-
-		// apply middleware stack
-		middlewareStack := middleware.CreateStack(
-			middleware.CORS,
-			middleware.Logging,
-			middleware.RateLimit(rl),
-			middleware.BearerAuth,
-			middleware.IncrementRequestCount,
-		)
-
-		// wrap the router with the middleware stack
-		http_handler = middlewareStack(router)
 	})
 	return initError
-}
-
-// handler - cloud func entry point
-func handler(w http.ResponseWriter, r *http.Request) {
-	if err := initialiseApp(); err != nil {
-		log.Printf("Failed to initialise application: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-
-	http_handler.ServeHTTP(w, r)
-}
-
-func main() {
-	if err := initialiseApp(); err != nil {
-		log.Fatalf("Failed to initialise: %v", err)
-	}
-	server := &http.Server{
-		Addr:    fmt.Sprintf(":%v", port),
-		Handler: http_handler,
-	}
-	log.Println("Server listening on port: ", port)
-	log.Fatal(server.ListenAndServe())
 }
