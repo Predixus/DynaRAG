@@ -26,34 +26,24 @@ import (
 //go:generate sqlc vet
 //go:generate sqlc generate
 
-const (
-	rlWindow      = 100 // seconds
-	rlMaxRequests = 10000
-)
-
 var (
 	postgres_conn_str string
-	redisUrl          string
 	port              string
 	http_handler      http.Handler
 	once              sync.Once
 )
 
-func setup() (string, string, string) {
+func setup() (string, string) {
 	var postgres_conn_str string = os.Getenv("POSTGRES_CONN_STR")
 	if postgres_conn_str == "" {
 		panic("`POSTGRES_CONN_STR` not set")
-	}
-	var redisUrl string = os.Getenv("REDIS_URL")
-	if redisUrl == "" {
-		panic("`REDIS_URL` not set")
 	}
 
 	var port string = os.Getenv("PORT")
 	if port == "" {
 		panic("`PORT` not set")
 	}
-	return postgres_conn_str, redisUrl, port
+	return postgres_conn_str, port
 }
 
 func init() {
@@ -62,7 +52,7 @@ func init() {
 		log.Println("Could not find `.env` file. Will obtain environment variables from system")
 	}
 
-	postgres_conn_str, redisUrl, port = setup()
+	postgres_conn_str, port = setup()
 }
 
 func Stub(w http.ResponseWriter, r *http.Request) {
@@ -280,7 +270,7 @@ func initialiseApp() error {
 			log.Println("No .env file found, using system environment variables")
 		}
 
-		postgres_conn_str, redisUrl, port = setup()
+		postgres_conn_str, port = setup()
 
 		// run migrations
 		m, err := migrate.New(
