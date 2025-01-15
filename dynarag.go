@@ -28,9 +28,17 @@ func (c *Client) Chunk(
 	ctx context.Context,
 	chunk string,
 	filePath string,
+	embeddingText *string,
 	metadata *types.JSONMap,
 ) error {
-	_, err := store.AddEmbedding(ctx, c.config.PostgresConnStr, filePath, chunk, metadata)
+	_, err := store.AddEmbedding(
+		ctx,
+		c.config.PostgresConnStr,
+		filePath,
+		chunk,
+		embeddingText,
+		metadata,
+	)
 	if err != nil {
 		slog.Error("Could not process embedding", "error", err)
 		return err
