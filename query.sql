@@ -19,15 +19,17 @@ WHERE id = $1;
 INSERT INTO embeddings (
     document_id,
     model_name,
-    chunk_text, 
+    chunk_text,
     embedding,
-    chunk_size, 
-    metadata, 
+    embedding_text, 
+    chunk_size,
+    metadata,
     metadata_hash
 ) VALUES (
-    $1, $2, $3, $4, length($3), $5, $6
+    $1, $2, $3, $4, $5, length($3), $6, $7
 )
-RETURNING *;
+RETURNING id, document_id, model_name, embedding, chunk_text, embedding_text, chunk_size, created_at, metadata, metadata_hash;
+
 
 -- name: GetEmbedding :one
 SELECT e.* FROM embeddings e
