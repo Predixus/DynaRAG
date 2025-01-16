@@ -8,7 +8,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
 
-//go:embed store/migrations/*.sql
+//go:embed internal/store/migrations/*.sql
 var migrations embed.FS
 
 // initMigrations runs database migrations using embedded migration files

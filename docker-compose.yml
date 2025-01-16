@@ -12,21 +12,5 @@ services:
     volumes:
       - local_pgdata:/var/lib/postgresql/data
       - ./db-init-scripts:/docker-entrypoint-initdb.d
-
-  cache:
-      image: redis:8.0-M02-alpine
-      restart: always
-      ports:
-        - '6380:6379'
-      command: >
-        redis-server
-        --save 20 1
-        --loglevel warning
-        --requirepass 53c2b86b1b3e8e91ac502c54cf49fcfd91e7d1271130b4de
-      volumes: 
-        - cache:/data
-
 volumes:
   local_pgdata:
-  cache:
-    driver: local

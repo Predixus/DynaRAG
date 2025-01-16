@@ -12,8 +12,8 @@ import (
 	"github.com/pgvector/pgvector-go"
 
 	"github.com/Predixus/DynaRAG/internal/embed"
+	"github.com/Predixus/DynaRAG/internal/utils"
 	"github.com/Predixus/DynaRAG/types"
-	"github.com/Predixus/DynaRAG/utils"
 )
 
 var (
