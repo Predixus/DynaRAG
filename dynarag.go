@@ -123,7 +123,7 @@ func (c *Client) ListChunks(
 	chunks, err := store.ListUserChunks(ctx, c.config.PostgresConnStr, metadata)
 	if err != nil {
 
-		slog.Error("Failed to list user chunks: %v", err)
+		slog.Error("Failed to list user chunks", "error", err)
 		noChunks := make([]store.ListChunksRow, 0, 0)
 
 		return noChunks, err

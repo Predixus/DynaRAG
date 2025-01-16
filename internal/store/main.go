@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"log/slog"
 	"sync"
 
@@ -74,13 +73,13 @@ func AddEmbedding(
 	if metadata != nil {
 		metadataJsonBytes, err := json.Marshal(metadata)
 		if err != nil {
-			log.Println("Error marshalling metadata: ", err)
+			slog.Error("Error marshalling metadata", "error", err)
 			return nil, err
 		}
 
 		metadataHash, err = utils.CalculateMetadataHash(metadataJsonBytes)
 		if err != nil {
-			log.Println("Error calculating hash on Metadata: ", err)
+			slog.Error("Error calculating hash on Metadata", "error", err)
 			return nil, err
 		}
 	} else {
@@ -141,7 +140,6 @@ func GetTopKEmbeddings(
 			return nil, err
 		}
 		metadataHash, err := utils.CalculateMetadataHash(jsonMetadataBytes)
-		log.Println("MetadataHash: ", metadataHash)
 		metadataHashPtr = &metadataHash
 		if err != nil {
 			return nil, err
@@ -274,7 +272,6 @@ func ListUserChunks(
 			return nil, err
 		}
 		metadataHash, err := utils.CalculateMetadataHash(jsonMetadataBytes)
-		log.Println("MetadataHash: ", metadataHash)
 		metadataHashPtr = &metadataHash
 		if err != nil {
 			return nil, err
@@ -289,7 +286,7 @@ func ListUserChunks(
 	}(), Valid: metadataHashPtr != nil},
 	)
 	if err != nil {
-		log.Println("Error when listing user chunks")
+		slog.Error("Error when listing user chunks", "error", err)
 		return nil, err
 	}
 
