@@ -1,7 +1,8 @@
-package main
+package dynarag
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"strconv"
@@ -22,11 +23,11 @@ import (
 
 var once sync.Once
 
-func Chunk(
+func (c *Client) Chunk(
 	ctx context.Context,
 	chunk string,
 	filePath string,
-	metadata map[string]interface{},
+	metadata *types.JSONMap,
 ) error {
 	_, err := store.AddEmbedding(ctx, filePath, chunk, metadata)
 	if err != nil {
@@ -36,7 +37,7 @@ func Chunk(
 	return nil
 }
 
-func Similar(
+func (c *Client) Similar(
 	ctx context.Context,
 	text string,
 	k int8,
@@ -52,7 +53,7 @@ func Similar(
 	return res, nil
 }
 
-func Query(
+func (c *Client) Query(
 	ctx context.Context,
 	query string,
 	k *int8,
@@ -90,7 +91,7 @@ func Query(
 	return nil
 }
 
-func PurgeChunks(ctx context.Context, dryRun *bool) (*store.DeletionStats, error) {
+func (c *Client) PurgeChunks(ctx context.Context, dryRun *bool) (*store.DeletionStats, error) {
 	doDryRun := false
 
 	if dryRun != nil {
@@ -105,7 +106,7 @@ func PurgeChunks(ctx context.Context, dryRun *bool) (*store.DeletionStats, error
 	return stats, nil
 }
 
-func GetStats(
+func (c *Client) GetStats(
 	ctx context.Context,
 ) (*store.GetUserStatsRow, error) {
 	stats, err := store.GetStats(ctx)
@@ -116,7 +117,10 @@ func GetStats(
 	return stats, nil
 }
 
-func ListChunks(ctx context.Context, metadata *types.JSONMap) ([]store.ListUserChunksRow, error) {
+func (c *Client) ListChunks(
+	ctx context.Context,
+	metadata *types.JSONMap,
+) ([]store.ListUserChunksRow, error) {
 	chunks, err := store.ListUserChunks(ctx, metadata)
 	if err != nil {
 
@@ -128,12 +132,41 @@ func ListChunks(ctx context.Context, metadata *types.JSONMap) ([]store.ListUserC
 	return chunks, nil
 }
 
+type Config struct {
+	PostgresConnStr string
+	MigrationsPath  string
+}
+
+type Client struct {
+	config Config
+}
+
+func New(cfg Config) (*Client, error) {
+	if cfg.PostgresConnStr == "" {
+		return nil, ErrMissingConnStr
+	}
+
+	if cfg.MigrationsPath == "" {
+		cfg.MigrationsPath = "file://store/migrations"
+	}
+
+	client := &Client{
+		config: cfg,
+	}
+
+	if err := client.Initialise(); err != nil {
+		return nil, fmt.Errorf("failed to initialize client: %w", err)
+	}
+
+	return client, nil
+}
+
 // Initiliase migrations and other neccessary infrastructure for DynaRAG
-func Initialise(postgresConnStr string) error {
+func (c *Client) Initialise() error {
 	// run migrations
 	m, err := migrate.New(
-		"file://store/migrations",
-		postgresConnStr,
+		c.config.MigrationsPath,
+		c.config.PostgresConnStr,
 	)
 	if err != nil {
 		return err

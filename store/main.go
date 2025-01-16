@@ -53,7 +53,7 @@ func AddEmbedding(
 	ctx context.Context,
 	filePath string,
 	text string,
-	metadata map[string]interface{},
+	metadata *types.JSONMap,
 ) (*Embedding, error) {
 	embedding, err := GetSingleEmbedding(ctx, text)
 	if err != nil {
