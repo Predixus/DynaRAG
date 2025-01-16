@@ -202,7 +202,7 @@ type DeletionStats struct {
 
 // DeleteUserEmbeddings deletes all embeddings and documents for a given user
 // If dryRun is true, returns what would be deleted without actually deleting
-func DeleteUserEmbeddings(ctx context.Context, userId string, dryRun bool) (*DeletionStats, error) {
+func DeleteUserEmbeddings(ctx context.Context, dryRun bool) (*DeletionStats, error) {
 	conn, err := pgx.Connect(ctx, postgres_conn_str)
 	if err != nil {
 		return nil, err
@@ -272,7 +272,7 @@ func DeleteUserEmbeddings(ctx context.Context, userId string, dryRun bool) (*Del
 	return deletionStats, nil
 }
 
-func GetUserStats(ctx context.Context, userId string) (*GetUserStatsRow, error) {
+func GetStats(ctx context.Context) (*GetUserStatsRow, error) {
 	conn, err := pgx.Connect(ctx, postgres_conn_str)
 	if err != nil {
 		return nil, err
@@ -296,7 +296,6 @@ func GetUserStats(ctx context.Context, userId string) (*GetUserStatsRow, error) 
 
 func ListUserChunks(
 	ctx context.Context,
-	userId string,
 	metadata *types.JSONMap,
 ) ([]ListUserChunksRow, error) {
 	conn, err := pgx.Connect(ctx, postgres_conn_str)
