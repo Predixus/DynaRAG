@@ -56,18 +56,8 @@ func (ns NullEmbeddingModel) Value() (driver.Value, error) {
 	return string(ns.EmbeddingModel), nil
 }
 
-type ApiUsage struct {
-	ID            int64
-	UserID        pgtype.Int8
-	RequestCount  pgtype.Int8
-	LastRequestAt pgtype.Timestamptz
-	CreatedAt     pgtype.Timestamptz
-	UpdatedAt     pgtype.Timestamptz
-}
-
 type Document struct {
 	ID             int64
-	UserID         pgtype.Int8
 	FilePath       string
 	TotalChunkSize pgtype.Int8
 	CreatedAt      pgtype.Timestamptz
@@ -84,12 +74,4 @@ type Embedding struct {
 	CreatedAt    pgtype.Timestamptz
 	Metadata     types.JSONMap
 	MetadataHash pgtype.Text
-}
-
-type User struct {
-	ID             int64
-	UserID         string
-	TotalChunkSize pgtype.Int8
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
 }

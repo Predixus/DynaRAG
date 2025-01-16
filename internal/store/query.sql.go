@@ -14,24 +14,18 @@ import (
 )
 
 const createDocument = `-- name: CreateDocument :one
-INSERT INTO documents (user_id, file_path)
-VALUES ($1, $2)
-ON CONFLICT (user_id, file_path) DO UPDATE 
+INSERT INTO documents (file_path)
+VALUES ($1)
+ON CONFLICT (file_path) DO UPDATE 
 SET updated_at = CURRENT_TIMESTAMP
-RETURNING id, user_id, file_path, total_chunk_size, created_at, updated_at
+RETURNING id, file_path, total_chunk_size, created_at, updated_at
 `
 
-type CreateDocumentParams struct {
-	UserID   pgtype.Int8
-	FilePath string
-}
-
-func (q *Queries) CreateDocument(ctx context.Context, arg CreateDocumentParams) (Document, error) {
-	row := q.db.QueryRow(ctx, createDocument, arg.UserID, arg.FilePath)
+func (q *Queries) CreateDocument(ctx context.Context, filePath string) (Document, error) {
+	row := q.db.QueryRow(ctx, createDocument, filePath)
 	var i Document
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.FilePath,
 		&i.TotalChunkSize,
 		&i.CreatedAt,
@@ -88,51 +82,22 @@ func (q *Queries) CreateEmbedding(ctx context.Context, arg CreateEmbeddingParams
 	return i, err
 }
 
-const createUser = `-- name: CreateUser :one
-INSERT INTO users (user_id)
-VALUES ($1)
-ON CONFLICT (user_id) DO UPDATE 
-SET updated_at = CURRENT_TIMESTAMP
-RETURNING id, user_id, total_chunk_size, created_at, updated_at
-`
-
-func (q *Queries) CreateUser(ctx context.Context, userID string) (User, error) {
-	row := q.db.QueryRow(ctx, createUser, userID)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.TotalChunkSize,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const deleteDocument = `-- name: DeleteDocument :exec
 DELETE FROM documents
-WHERE id = $1 AND user_id = $2
+WHERE id = $1
 `
 
-type DeleteDocumentParams struct {
-	ID     int64
-	UserID pgtype.Int8
-}
-
-func (q *Queries) DeleteDocument(ctx context.Context, arg DeleteDocumentParams) error {
-	_, err := q.db.Exec(ctx, deleteDocument, arg.ID, arg.UserID)
+func (q *Queries) DeleteDocument(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, deleteDocument, id)
 	return err
 }
 
-const deleteUserEmbeddings = `-- name: DeleteUserEmbeddings :exec
-DELETE FROM embeddings e
-USING documents d
-WHERE d.user_id = $1 
-AND e.document_id = d.id
+const deleteEmbeddings = `-- name: DeleteEmbeddings :exec
+DELETE FROM embeddings
 `
 
-func (q *Queries) DeleteUserEmbeddings(ctx context.Context, userID pgtype.Int8) error {
-	_, err := q.db.Exec(ctx, deleteUserEmbeddings, userID)
+func (q *Queries) DeleteEmbeddings(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, deleteEmbeddings)
 	return err
 }
 
@@ -149,10 +114,9 @@ WITH similarity_scores AS (
     FROM embeddings e
     JOIN documents d ON d.id = e.document_id
     WHERE e.document_id = $3
-      AND d.user_id = $4
-      AND e.model_name = $5
-      AND 1 - (e.embedding <=> $2::vector) > $6
-      AND ($7::text IS NULL OR $7::text = e.metadata_hash)
+      AND e.model_name = $4
+      AND 1 - (e.embedding <=> $2::vector) > $5
+      AND ($6::text IS NULL OR $6::text = e.metadata_hash)
 )
 SELECT id, document_id, chunk_text, chunk_size, metadata, file_path, similarity
 FROM similarity_scores
@@ -164,7 +128,6 @@ type FindSimilarEmbeddingsInDocumentParams struct {
 	MaxResults          int32
 	QueryEmbedding      pgvector.Vector
 	DocumentID          pgtype.Int8
-	UserID              pgtype.Int8
 	ModelName           EmbeddingModel
 	SimilarityThreshold pgvector.Vector
 	MetadataHash        pgtype.Text
@@ -185,7 +148,6 @@ func (q *Queries) FindSimilarEmbeddingsInDocument(ctx context.Context, arg FindS
 		arg.MaxResults,
 		arg.QueryEmbedding,
 		arg.DocumentID,
-		arg.UserID,
 		arg.ModelName,
 		arg.SimilarityThreshold,
 		arg.MetadataHash,
@@ -224,21 +186,19 @@ SELECT
     e.chunk_size,
     d.file_path,
     e.metadata,
-    (e.embedding <-> $1::vector)::float8 as distance,
-    (1 - (e.embedding <-> $1::vector))::float8 as similarity
+    (e.embedding <=> $1::vector)::float8 as distance,
+    (1 - (e.embedding <=> $1::vector))::float8 as similarity
 FROM embeddings e
 JOIN documents d ON d.id = e.document_id
 WHERE e.model_name = $2
-  AND d.user_id = $3
-  AND ($4::text IS NULL OR $4::text = e.metadata_hash)
-ORDER BY e.embedding <-> $1::vector ASC
-LIMIT $5
+  AND ($3::text IS NULL OR $3::text = e.metadata_hash)
+ORDER BY e.embedding <=> $1::vector ASC
+LIMIT $4
 `
 
 type FindTopKNNEmbeddingsParams struct {
 	QueryEmbedding pgvector.Vector
 	ModelName      EmbeddingModel
-	UserID         pgtype.Int8
 	MetadataHash   pgtype.Text
 	K              int32
 }
@@ -258,7 +218,6 @@ func (q *Queries) FindTopKNNEmbeddings(ctx context.Context, arg FindTopKNNEmbedd
 	rows, err := q.db.Query(ctx, findTopKNNEmbeddings,
 		arg.QueryEmbedding,
 		arg.ModelName,
-		arg.UserID,
 		arg.MetadataHash,
 		arg.K,
 	)
@@ -290,21 +249,14 @@ func (q *Queries) FindTopKNNEmbeddings(ctx context.Context, arg FindTopKNNEmbedd
 }
 
 const getDocument = `-- name: GetDocument :one
-SELECT id, user_id, file_path, total_chunk_size, created_at, updated_at FROM documents
-WHERE id = $1 AND user_id = $2 LIMIT 1
+SELECT id, file_path, total_chunk_size, created_at, updated_at FROM documents WHERE id = $1 LIMIT 1
 `
 
-type GetDocumentParams struct {
-	ID     int64
-	UserID pgtype.Int8
-}
-
-func (q *Queries) GetDocument(ctx context.Context, arg GetDocumentParams) (Document, error) {
-	row := q.db.QueryRow(ctx, getDocument, arg.ID, arg.UserID)
+func (q *Queries) GetDocument(ctx context.Context, id int64) (Document, error) {
+	row := q.db.QueryRow(ctx, getDocument, id)
 	var i Document
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.FilePath,
 		&i.TotalChunkSize,
 		&i.CreatedAt,
@@ -316,16 +268,11 @@ func (q *Queries) GetDocument(ctx context.Context, arg GetDocumentParams) (Docum
 const getEmbedding = `-- name: GetEmbedding :one
 SELECT e.id, e.document_id, e.model_name, e.embedding, e.chunk_text, e.chunk_size, e.created_at, e.metadata, e.metadata_hash FROM embeddings e
 JOIN documents d ON d.id = e.document_id
-WHERE e.id = $1 AND d.user_id = $2 LIMIT 1
+WHERE e.id = $1 LIMIT 1
 `
 
-type GetEmbeddingParams struct {
-	ID     int64
-	UserID pgtype.Int8
-}
-
-func (q *Queries) GetEmbedding(ctx context.Context, arg GetEmbeddingParams) (Embedding, error) {
-	row := q.db.QueryRow(ctx, getEmbedding, arg.ID, arg.UserID)
+func (q *Queries) GetEmbedding(ctx context.Context, id int64) (Embedding, error) {
+	row := q.db.QueryRow(ctx, getEmbedding, id)
 	var i Embedding
 	err := row.Scan(
 		&i.ID,
@@ -341,112 +288,120 @@ func (q *Queries) GetEmbedding(ctx context.Context, arg GetEmbeddingParams) (Emb
 	return i, err
 }
 
-const getUserStats = `-- name: GetUserStats :one
+const getStats = `-- name: GetStats :one
 SELECT 
-    u.total_chunk_size as total_bytes,
-    COALESCE(a.request_count, 0) as api_requests,
     COUNT(DISTINCT d.id) as document_count,
-    COUNT(e.id) as chunk_count
-FROM users u
-LEFT JOIN api_usage a ON a.user_id = u.id
-LEFT JOIN documents d ON d.user_id = u.id
+    COUNT(e.id) as chunk_count,
+    COALESCE(SUM(e.chunk_size), 0) as total_bytes
+FROM documents d
 LEFT JOIN embeddings e ON e.document_id = d.id
-WHERE u.id = $1
-GROUP BY u.id, u.total_chunk_size, a.request_count
 `
 
-type GetUserStatsRow struct {
-	TotalBytes    pgtype.Int8
-	ApiRequests   int64
+type GetStatsRow struct {
 	DocumentCount int64
 	ChunkCount    int64
+	TotalBytes    interface{}
 }
 
-func (q *Queries) GetUserStats(ctx context.Context, userID int64) (GetUserStatsRow, error) {
-	row := q.db.QueryRow(ctx, getUserStats, userID)
-	var i GetUserStatsRow
-	err := row.Scan(
-		&i.TotalBytes,
-		&i.ApiRequests,
-		&i.DocumentCount,
-		&i.ChunkCount,
-	)
+func (q *Queries) GetStats(ctx context.Context) (GetStatsRow, error) {
+	row := q.db.QueryRow(ctx, getStats)
+	var i GetStatsRow
+	err := row.Scan(&i.DocumentCount, &i.ChunkCount, &i.TotalBytes)
 	return i, err
 }
 
-const getUserStorageStats = `-- name: GetUserStorageStats :one
+const getStorageStats = `-- name: GetStorageStats :one
 SELECT 
     COUNT(e.id) as embedding_count,
-    u.total_chunk_size as total_bytes,
+    SUM(e.chunk_size) as total_bytes,
     COUNT(DISTINCT d.id) as document_count
-FROM users u
-LEFT JOIN documents d ON d.user_id = u.id
+FROM embeddings e
 LEFT JOIN embeddings e ON e.document_id = d.id
-WHERE u.id = $1
-GROUP BY u.id, u.total_chunk_size
 `
 
-type GetUserStorageStatsRow struct {
+type GetStorageStatsRow struct {
 	EmbeddingCount int64
-	TotalBytes     pgtype.Int8
+	TotalBytes     int64
 	DocumentCount  int64
 }
 
-func (q *Queries) GetUserStorageStats(ctx context.Context, id int64) (GetUserStorageStatsRow, error) {
-	row := q.db.QueryRow(ctx, getUserStorageStats, id)
-	var i GetUserStorageStatsRow
+func (q *Queries) GetStorageStats(ctx context.Context) (GetStorageStatsRow, error) {
+	row := q.db.QueryRow(ctx, getStorageStats)
+	var i GetStorageStatsRow
 	err := row.Scan(&i.EmbeddingCount, &i.TotalBytes, &i.DocumentCount)
 	return i, err
 }
 
-const incrementAPIUsage = `-- name: IncrementAPIUsage :one
-INSERT INTO api_usage (
-    user_id,
-    request_count,
-    last_request_at
-)
-VALUES (
-    $1,
-    1,
-    CURRENT_TIMESTAMP
-)
-ON CONFLICT (user_id) DO UPDATE 
-SET 
-    request_count = api_usage.request_count + 1,
-    last_request_at = CURRENT_TIMESTAMP,
-    updated_at = CURRENT_TIMESTAMP
-RETURNING id, user_id, request_count, last_request_at, created_at, updated_at
+const listChunks = `-- name: ListChunks :many
+SELECT 
+    e.id,
+    e.chunk_text,
+    e.metadata,
+    e.chunk_size,
+    e.model_name,
+    e.created_at,
+    d.file_path,
+    d.id as document_id
+FROM embeddings e
+JOIN documents d ON d.id = e.document_id
+WHERE ($1::text IS NULL OR e.metadata_hash = $1::text)
+ORDER BY e.created_at DESC
 `
 
-func (q *Queries) IncrementAPIUsage(ctx context.Context, userID pgtype.Int8) (ApiUsage, error) {
-	row := q.db.QueryRow(ctx, incrementAPIUsage, userID)
-	var i ApiUsage
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.RequestCount,
-		&i.LastRequestAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+type ListChunksRow struct {
+	ID         int64
+	ChunkText  string
+	Metadata   types.JSONMap
+	ChunkSize  int32
+	ModelName  EmbeddingModel
+	CreatedAt  pgtype.Timestamptz
+	FilePath   string
+	DocumentID int64
+}
+
+func (q *Queries) ListChunks(ctx context.Context, metadataHash pgtype.Text) ([]ListChunksRow, error) {
+	rows, err := q.db.Query(ctx, listChunks, metadataHash)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListChunksRow
+	for rows.Next() {
+		var i ListChunksRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ChunkText,
+			&i.Metadata,
+			&i.ChunkSize,
+			&i.ModelName,
+			&i.CreatedAt,
+			&i.FilePath,
+			&i.DocumentID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listDocumentEmbeddings = `-- name: ListDocumentEmbeddings :many
 SELECT e.id, e.document_id, e.model_name, e.embedding, e.chunk_text, e.chunk_size, e.created_at, e.metadata, e.metadata_hash FROM embeddings e
 JOIN documents d ON d.id = e.document_id
-WHERE e.document_id = $1 AND d.user_id = $2
-  AND ($3::text IS NULL OR $3::text = e.metadata_hash)
+WHERE e.document_id = $1
+  AND ($2::text IS NULL OR $2::text = e.metadata_hash)
 `
 
 type ListDocumentEmbeddingsParams struct {
 	DocumentID   pgtype.Int8
-	UserID       pgtype.Int8
 	MetadataHash pgtype.Text
 }
 
 func (q *Queries) ListDocumentEmbeddings(ctx context.Context, arg ListDocumentEmbeddingsParams) ([]Embedding, error) {
-	rows, err := q.db.Query(ctx, listDocumentEmbeddings, arg.DocumentID, arg.UserID, arg.MetadataHash)
+	rows, err := q.db.Query(ctx, listDocumentEmbeddings, arg.DocumentID, arg.MetadataHash)
 	if err != nil {
 		return nil, err
 	}
@@ -475,76 +430,12 @@ func (q *Queries) ListDocumentEmbeddings(ctx context.Context, arg ListDocumentEm
 	return items, nil
 }
 
-const listUserChunks = `-- name: ListUserChunks :many
-SELECT 
-    e.id,
-    e.chunk_text,
-    e.metadata,
-    e.chunk_size,
-    e.model_name,
-    e.created_at,
-    d.file_path,
-    d.id as document_id
-FROM embeddings e
-JOIN documents d ON d.id = e.document_id
-WHERE d.user_id = $1
-  AND ($2::text IS NULL OR e.metadata_hash = $2::text)
-ORDER BY e.created_at DESC
+const listDocuments = `-- name: ListDocuments :many
+SELECT id, file_path, total_chunk_size, created_at, updated_at FROM documents ORDER BY created_at DESC
 `
 
-type ListUserChunksParams struct {
-	UserID       pgtype.Int8
-	MetadataHash pgtype.Text
-}
-
-type ListUserChunksRow struct {
-	ID         int64
-	ChunkText  string
-	Metadata   types.JSONMap
-	ChunkSize  int32
-	ModelName  EmbeddingModel
-	CreatedAt  pgtype.Timestamptz
-	FilePath   string
-	DocumentID int64
-}
-
-func (q *Queries) ListUserChunks(ctx context.Context, arg ListUserChunksParams) ([]ListUserChunksRow, error) {
-	rows, err := q.db.Query(ctx, listUserChunks, arg.UserID, arg.MetadataHash)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListUserChunksRow
-	for rows.Next() {
-		var i ListUserChunksRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.ChunkText,
-			&i.Metadata,
-			&i.ChunkSize,
-			&i.ModelName,
-			&i.CreatedAt,
-			&i.FilePath,
-			&i.DocumentID,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listUserDocuments = `-- name: ListUserDocuments :many
-SELECT id, user_id, file_path, total_chunk_size, created_at, updated_at FROM documents
-WHERE user_id = $1
-ORDER BY created_at DESC
-`
-
-func (q *Queries) ListUserDocuments(ctx context.Context, userID pgtype.Int8) ([]Document, error) {
-	rows, err := q.db.Query(ctx, listUserDocuments, userID)
+func (q *Queries) ListDocuments(ctx context.Context) ([]Document, error) {
+	rows, err := q.db.Query(ctx, listDocuments)
 	if err != nil {
 		return nil, err
 	}
@@ -554,7 +445,6 @@ func (q *Queries) ListUserDocuments(ctx context.Context, userID pgtype.Int8) ([]
 		var i Document
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.FilePath,
 			&i.TotalChunkSize,
 			&i.CreatedAt,
