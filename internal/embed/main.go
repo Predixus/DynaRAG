@@ -41,6 +41,8 @@ var (
 	once      sync.Once
 )
 
+// Configurations - functional option config pattern
+
 // WithModelDir sets the model directory
 func WithModelDir(dir string) Option {
 	return func(c *EmbedderConfig) {

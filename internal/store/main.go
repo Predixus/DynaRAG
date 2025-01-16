@@ -9,10 +9,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/joho/godotenv"
 	"github.com/pgvector/pgvector-go"
 
-	"github.com/Predixus/DynaRAG/embed"
+	"github.com/Predixus/DynaRAG/internal/embed"
 	"github.com/Predixus/DynaRAG/types"
 	"github.com/Predixus/DynaRAG/utils"
 )
@@ -27,7 +26,7 @@ func init() {
 	embedder, err = embed.GetEmbedder()
 	if err != nil {
 		slog.Error("Failed to initialise embedder: %v", err)
-		return err
+		return
 	}
 }
 
@@ -43,6 +42,7 @@ func AddEmbedding(
 	ctx context.Context,
 	filePath string,
 	text string,
+	postgresConnStr string,
 	metadata *types.JSONMap,
 ) (*Embedding, error) {
 	embedding, err := GetSingleEmbedding(ctx, text)
@@ -50,7 +50,7 @@ func AddEmbedding(
 		return nil, err
 	}
 
-	conn, err := pgx.Connect(ctx, postgres_conn_str)
+	conn, err := pgx.Connect(ctx, postgresConnStr)
 	if err != nil {
 		return nil, err
 	}
@@ -64,16 +64,11 @@ func AddEmbedding(
 
 	q := New(tx)
 
-	user, err := q.CreateUser(ctx, userId)
 	if err != nil {
 		return nil, err
 	}
 
 	doc, err := q.CreateDocument(ctx, CreateDocumentParams{
-		UserID: pgtype.Int8{
-			Int64: user.ID,
-			Valid: true,
-		},
 		FilePath: filePath,
 	})
 	if err != nil {
@@ -335,29 +330,4 @@ func ListUserChunks(
 	}
 
 	return chunks, nil
-}
-
-func IncrementAPIUsage(ctx context.Context, userId string) (*ApiUsage, error) {
-	conn, err := pgx.Connect(ctx, postgres_conn_str)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close(ctx)
-
-	q := New(conn)
-
-	user, err := q.CreateUser(ctx, userId)
-	if err != nil {
-		return nil, err
-	}
-
-	usage, err := q.IncrementAPIUsage(ctx, pgtype.Int8{
-		Int64: user.ID,
-		Valid: true,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &usage, nil
 }
