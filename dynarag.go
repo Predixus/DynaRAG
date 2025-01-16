@@ -12,8 +12,8 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 
+	"github.com/Predixus/DynaRAG/internal/store"
 	"github.com/Predixus/DynaRAG/rag"
-	"github.com/Predixus/DynaRAG/store"
 	"github.com/Predixus/DynaRAG/types"
 )
 
@@ -28,7 +28,7 @@ func (c *Client) Chunk(
 	filePath string,
 	metadata *types.JSONMap,
 ) error {
-	_, err := store.AddEmbedding(ctx, filePath, chunk, metadata)
+	_, err := store.AddEmbedding(ctx, c.config.PostgresConnStr, filePath, chunk, metadata)
 	if err != nil {
 		slog.Error("Could not process embedding: %v", err)
 		return err
@@ -44,7 +44,7 @@ func (c *Client) Similar(
 ) ([]store.FindTopKNNEmbeddingsRow, error) {
 	slog.Info("Gathering similar documents")
 
-	res, err := store.GetTopKEmbeddings(ctx, text, k, metadata)
+	res, err := store.GetTopKEmbeddings(ctx, c.config.PostgresConnStr, text, k, metadata)
 	if err != nil {
 		slog.Error("Could not get top K embeddings: %v", err)
 		return nil, err
@@ -66,7 +66,7 @@ func (c *Client) Query(
 		topN = *k
 	}
 
-	res, err := store.GetTopKEmbeddings(ctx, query, topN, metadata)
+	res, err := store.GetTopKEmbeddings(ctx, c.config.PostgresConnStr, query, topN, metadata)
 	if err != nil {
 		slog.Error("Could not get top K embeddings: %v", err)
 		return err
@@ -97,7 +97,7 @@ func (c *Client) PurgeChunks(ctx context.Context, dryRun *bool) (*store.Deletion
 		doDryRun = *dryRun
 	}
 
-	stats, err := store.DeleteUserEmbeddings(ctx, doDryRun)
+	stats, err := store.DeleteUserEmbeddings(ctx, c.config.PostgresConnStr, doDryRun)
 	if err != nil {
 		slog.Error("Failed to delete embeddings: %v", err)
 		return nil, err
@@ -107,8 +107,8 @@ func (c *Client) PurgeChunks(ctx context.Context, dryRun *bool) (*store.Deletion
 
 func (c *Client) GetStats(
 	ctx context.Context,
-) (*store.GetUserStatsRow, error) {
-	stats, err := store.GetStats(ctx)
+) (*store.GetStatsRow, error) {
+	stats, err := store.GetStats(ctx, c.config.PostgresConnStr)
 	if err != nil {
 		slog.Error("Failed to get user stats: %v", err)
 		return nil, err
@@ -119,12 +119,12 @@ func (c *Client) GetStats(
 func (c *Client) ListChunks(
 	ctx context.Context,
 	metadata *types.JSONMap,
-) ([]store.ListUserChunksRow, error) {
-	chunks, err := store.ListUserChunks(ctx, metadata)
+) ([]store.ListChunksRow, error) {
+	chunks, err := store.ListUserChunks(ctx, c.config.PostgresConnStr, metadata)
 	if err != nil {
 
 		slog.Error("Failed to list user chunks: %v", err)
-		noChunks := make([]store.ListUserChunksRow, 0, 0)
+		noChunks := make([]store.ListChunksRow, 0, 0)
 
 		return noChunks, err
 	}
