@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"os"
+	"log/slog"
 	"sync"
 
 	"github.com/jackc/pgx/v5"
@@ -18,26 +18,16 @@ import (
 )
 
 var (
-	once_v2           sync.Once
-	postgres_conn_str string
-	embedder          *embed.Embedder
+	once_v2  sync.Once
+	embedder *embed.Embedder
 )
 
-func setup() string {
-	postgres_conn_str := os.Getenv("POSTGRES_CONN_STR")
-	if postgres_conn_str == "" {
-		panic("`POSTGRES_CONN_STR` not set")
-	}
-	return postgres_conn_str
-}
-
 func init() {
-	godotenv.Load()
-	postgres_conn_str = setup()
 	var err error
 	embedder, err = embed.GetEmbedder()
 	if err != nil {
-		log.Fatalf("Failed to initialize embedder: %v", err)
+		slog.Error("Failed to initialise embedder: %v", err)
+		return err
 	}
 }
 

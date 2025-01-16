@@ -1,6 +1,7 @@
 package embed
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +11,16 @@ import (
 	"github.com/knights-analytics/hugot/pipelines"
 )
 
+// EmbedderConfig holds the configuration for the Embedder
+type EmbedderConfig struct {
+	ModelDir  string
+	ModelName string
+}
+
+// Option is a functional option for configuring the Embedder
+type Option func(*EmbedderConfig)
+
+// Embedder handles text embedding operations
 type Embedder struct {
 	modelPath string
 	pipeline  *pipelines.FeatureExtractionPipeline
@@ -17,56 +28,84 @@ type Embedder struct {
 	mu        sync.RWMutex
 }
 
+// DefaultConfig returns the default configuration
+func DefaultConfig() EmbedderConfig {
+	return EmbedderConfig{
+		ModelDir:  "./models",
+		ModelName: "optimum/all-MiniLM-L6-v2",
+	}
+}
+
 var (
 	singleton *Embedder
 	once      sync.Once
 )
 
-func GetEmbedder() (*Embedder, error) {
+// WithModelDir sets the model directory
+func WithModelDir(dir string) Option {
+	return func(c *EmbedderConfig) {
+		c.ModelDir = dir
+	}
+}
+
+// WithModelName sets the model name
+func WithModelName(name string) Option {
+	return func(c *EmbedderConfig) {
+		c.ModelName = name
+	}
+}
+
+// GetEmbedder returns a singleton instance of Embedder with the given options
+func GetEmbedder(opts ...Option) (*Embedder, error) {
 	var initError error
 	once.Do(func() {
-		singleton, initError = newEmbedder()
+		singleton, initError = newEmbedder(opts...)
 	})
 	return singleton, initError
 }
 
-func newEmbedder() (*Embedder, error) {
+func newEmbedder(opts ...Option) (*Embedder, error) {
+	// Apply configuration options
+	config := DefaultConfig()
+	for _, opt := range opts {
+		opt(&config)
+	}
+
 	session, err := hugot.NewORTSession()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create ORT session: %w", err)
 	}
 
-	modelDir := "./models"
-	model := "optimum/all-MiniLM-L6-v2"
-
-	// TODO manage more models
-	modelPath := filepath.Join(modelDir, strings.Replace(model, "/", "_", 1))
-	err = os.MkdirAll(modelPath, 0775)
-	if err != nil {
-		panic(err)
+	modelPath := filepath.Join(config.ModelDir, strings.Replace(config.ModelName, "/", "_", 1))
+	if err := os.MkdirAll(modelPath, 0775); err != nil {
+		return nil, fmt.Errorf("failed to create model directory: %w", err)
 	}
 
-	// check if model exists, download if it doesn't
+	// Check if model exists, download if it doesn't
 	files, err := filepath.Glob(filepath.Join(modelPath, "*.onnx"))
-	if err != nil || len(files) == 0 {
+	if err != nil {
+		return nil, fmt.Errorf("failed to check for existing model: %w", err)
+	}
+
+	if len(files) == 0 {
 		modelPath, err = hugot.DownloadModel(
-			model,
-			modelDir,
+			config.ModelName,
+			config.ModelDir,
 			hugot.NewDownloadOptions(),
 		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to download model: %w", err)
 		}
 	}
 
-	config := hugot.FeatureExtractionConfig{
+	pipelineConfig := hugot.FeatureExtractionConfig{
 		ModelPath: modelPath,
 		Name:      "embedder",
 	}
 
-	pipeline, err := hugot.NewPipeline(session, config)
+	pipeline, err := hugot.NewPipeline(session, pipelineConfig)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create pipeline: %w", err)
 	}
 
 	return &Embedder{

@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
@@ -134,7 +133,6 @@ func (c *Client) ListChunks(
 
 type Config struct {
 	PostgresConnStr string
-	MigrationsPath  string
 }
 
 type Client struct {
@@ -144,10 +142,6 @@ type Client struct {
 func New(cfg Config) (*Client, error) {
 	if cfg.PostgresConnStr == "" {
 		return nil, ErrMissingConnStr
-	}
-
-	if cfg.MigrationsPath == "" {
-		cfg.MigrationsPath = "file://store/migrations"
 	}
 
 	client := &Client{
@@ -161,19 +155,7 @@ func New(cfg Config) (*Client, error) {
 	return client, nil
 }
 
-// Initiliase migrations and other neccessary infrastructure for DynaRAG
+// Initialise migrations and other necessary infrastructure for DynaRAG
 func (c *Client) Initialise() error {
-	// run migrations
-	m, err := migrate.New(
-		c.config.MigrationsPath,
-		c.config.PostgresConnStr,
-	)
-	if err != nil {
-		return err
-	}
-
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		return err
-	}
-	return nil
+	return initMigrations(c.config.PostgresConnStr)
 }
