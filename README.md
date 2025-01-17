@@ -1,4 +1,5 @@
-# DynaRAG
+
+![Group 6](https://github.com/user-attachments/assets/1b37d34c-6f54-4e34-9a93-c00757377f7f)
 
 ![GitHub Release](https://img.shields.io/github/v/release/Predixus/DynaRAG)
 
