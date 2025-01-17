@@ -54,7 +54,11 @@ RETURNING id, document_id, model_name, embedding, chunk_text, chunk_size, create
 type CreateEmbeddingParams struct {
 	DocumentID    pgtype.Int8
 	ModelName     EmbeddingModel
+<<<<<<< HEAD:internal/store/query.sql.go
 	Embedding     pgvector.Vector
+=======
+	Embedding     interface{}
+>>>>>>> 086039a (issues resolved):store/query.sql.go
 	ChunkText     string
 	Metadata      types.JSONMap
 	MetadataHash  pgtype.Text
@@ -83,6 +87,30 @@ func (q *Queries) CreateEmbedding(ctx context.Context, arg CreateEmbeddingParams
 		&i.Metadata,
 		&i.MetadataHash,
 		&i.EmbeddingText,
+<<<<<<< HEAD:internal/store/query.sql.go
+=======
+	)
+	return i, err
+}
+
+const createUser = `-- name: CreateUser :one
+INSERT INTO users (user_id)
+VALUES ($1)
+ON CONFLICT (user_id) DO UPDATE 
+SET updated_at = CURRENT_TIMESTAMP
+RETURNING id, user_id, total_chunk_size, created_at, updated_at
+`
+
+func (q *Queries) CreateUser(ctx context.Context, userID string) (User, error) {
+	row := q.db.QueryRow(ctx, createUser, userID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.TotalChunkSize,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+>>>>>>> 086039a (issues resolved):store/query.sql.go
 	)
 	return i, err
 }
