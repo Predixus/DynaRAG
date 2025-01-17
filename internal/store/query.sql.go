@@ -38,63 +38,51 @@ const createEmbedding = `-- name: CreateEmbedding :one
 INSERT INTO embeddings (
     document_id,
     model_name,
-    chunk_text,
     embedding,
-    embedding_text, 
+    chunk_text,
     chunk_size,
+    created_at,
     metadata,
-    metadata_hash
+    metadata_hash,
+    embedding_text
 ) VALUES (
-    $1, $2, $3, $4, $5, length($3), $6, $7
+    $1, $2, $3, $4, length($4), DEFAULT, $5, $6, $7
 )
-RETURNING id, document_id, model_name, embedding, chunk_text, embedding_text, chunk_size, created_at, metadata, metadata_hash
+RETURNING id, document_id, model_name, embedding, chunk_text, chunk_size, created_at, metadata, metadata_hash, embedding_text
 `
 
 type CreateEmbeddingParams struct {
 	DocumentID    pgtype.Int8
 	ModelName     EmbeddingModel
+	Embedding     pgvector.Vector
 	ChunkText     string
-	Embedding     interface{}
-	EmbeddingText pgtype.Text
 	Metadata      types.JSONMap
 	MetadataHash  pgtype.Text
-}
-
-type CreateEmbeddingRow struct {
-	ID            int64
-	DocumentID    pgtype.Int8
-	ModelName     EmbeddingModel
-	Embedding     interface{}
-	ChunkText     string
 	EmbeddingText pgtype.Text
-	ChunkSize     int32
-	CreatedAt     pgtype.Timestamptz
-	Metadata      types.JSONMap
-	MetadataHash  pgtype.Text
 }
 
-func (q *Queries) CreateEmbedding(ctx context.Context, arg CreateEmbeddingParams) (CreateEmbeddingRow, error) {
+func (q *Queries) CreateEmbedding(ctx context.Context, arg CreateEmbeddingParams) (Embedding, error) {
 	row := q.db.QueryRow(ctx, createEmbedding,
 		arg.DocumentID,
 		arg.ModelName,
-		arg.ChunkText,
 		arg.Embedding,
-		arg.EmbeddingText,
+		arg.ChunkText,
 		arg.Metadata,
 		arg.MetadataHash,
+		arg.EmbeddingText,
 	)
-	var i CreateEmbeddingRow
+	var i Embedding
 	err := row.Scan(
 		&i.ID,
 		&i.DocumentID,
 		&i.ModelName,
 		&i.Embedding,
 		&i.ChunkText,
-		&i.EmbeddingText,
 		&i.ChunkSize,
 		&i.CreatedAt,
 		&i.Metadata,
 		&i.MetadataHash,
+		&i.EmbeddingText,
 	)
 	return i, err
 }
@@ -146,7 +134,7 @@ type FindSimilarEmbeddingsInDocumentParams struct {
 	QueryEmbedding      pgvector.Vector
 	DocumentID          pgtype.Int8
 	ModelName           EmbeddingModel
-	SimilarityThreshold interface{}
+	SimilarityThreshold pgvector.Vector
 	MetadataHash        pgtype.Text
 }
 

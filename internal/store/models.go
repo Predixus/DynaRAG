@@ -10,6 +10,7 @@ import (
 
 	"github.com/Predixus/DynaRAG/types"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/pgvector/pgvector-go"
 )
 
 type EmbeddingModel string
@@ -67,16 +68,11 @@ type Embedding struct {
 	ID            int64
 	DocumentID    pgtype.Int8
 	ModelName     EmbeddingModel
-	Embedding     interface{}
+	Embedding     pgvector.Vector
 	ChunkText     string
 	ChunkSize     int32
 	CreatedAt     pgtype.Timestamptz
 	Metadata      types.JSONMap
 	MetadataHash  pgtype.Text
 	EmbeddingText pgtype.Text
-}
-
-type SchemaMigration struct {
-	Version int64
-	Dirty   bool
 }
