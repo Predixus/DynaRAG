@@ -34,3 +34,4 @@ bin/
 # tmp folder
 /tmp
 /models
+/.vscode

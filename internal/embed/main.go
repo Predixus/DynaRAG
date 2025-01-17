@@ -31,7 +31,7 @@ type Embedder struct {
 // DefaultConfig returns the default configuration
 func DefaultConfig() EmbedderConfig {
 	return EmbedderConfig{
-		ModelDir:  "./models",
+		ModelDir:  "../../models",
 		ModelName: "optimum/all-MiniLM-L6-v2",
 	}
 }
