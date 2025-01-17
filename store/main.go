@@ -53,10 +53,15 @@ func AddEmbedding(
 	ctx context.Context,
 	userId string,
 	filePath string,
-	text string,
+	chunkText string, // renamed from text
+	embeddingText *string, // using nil for default behavior
 	metadata map[string]interface{},
 ) (*Embedding, error) {
-	embedding, err := GetSingleEmbedding(ctx, text)
+	textToEmbed := chunkText
+	if embeddingText != nil {
+		textToEmbed = *embeddingText
+	}
+	embedding, err := GetSingleEmbedding(ctx, textToEmbed)
 	if err != nil {
 		return nil, err
 	}
@@ -110,19 +115,23 @@ func AddEmbedding(
 	}
 
 	embeddingRecord, err := q.CreateEmbedding(ctx, CreateEmbeddingParams{
-		DocumentID: pgtype.Int8{
-			Int64: doc.ID,
-			Valid: true,
-		},
-		ModelName: "all-MiniLM-L6-v2",
-		ChunkText: text,
-		Embedding: pgvector.NewVector(embedding),
-		Metadata:  metadata,
-		MetadataHash: pgtype.Text{
-			String: metadataHash,
-			Valid:  true,
+		DocumentID:   pgtype.Int8{Int64: doc.ID, Valid: true},
+		ModelName:    "all-MiniLM-L6-v2",
+		ChunkText:    chunkText,
+		Embedding:    pgvector.NewVector(embedding),
+		Metadata:     metadata,
+		MetadataHash: pgtype.Text{String: metadataHash, Valid: true},
+		EmbeddingText: pgtype.Text{
+			String: func() string {
+				if embeddingText != nil {
+					return *embeddingText
+				}
+				return ""
+			}(),
+			Valid: embeddingText != nil,
 		},
 	})
+
 	if err != nil {
 		return nil, err
 	}

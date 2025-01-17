@@ -44,34 +44,38 @@ const createEmbedding = `-- name: CreateEmbedding :one
 INSERT INTO embeddings (
     document_id,
     model_name,
-    chunk_text, 
     embedding,
-    chunk_size, 
-    metadata, 
-    metadata_hash
+    chunk_text,
+    chunk_size,
+    created_at,
+    metadata,
+    metadata_hash,
+    embedding_text
 ) VALUES (
-    $1, $2, $3, $4, length($3), $5, $6
+    $1, $2, $3, $4, length($4), DEFAULT, $5, $6, $7
 )
-RETURNING id, document_id, model_name, embedding, chunk_text, chunk_size, created_at, metadata, metadata_hash
+RETURNING id, document_id, model_name, embedding, chunk_text, chunk_size, created_at, metadata, metadata_hash, embedding_text
 `
 
 type CreateEmbeddingParams struct {
-	DocumentID   pgtype.Int8
-	ModelName    EmbeddingModel
-	ChunkText    string
-	Embedding    pgvector.Vector
-	Metadata     types.JSONMap
-	MetadataHash pgtype.Text
+	DocumentID    pgtype.Int8
+	ModelName     EmbeddingModel
+	Embedding     interface{}
+	ChunkText     string
+	Metadata      types.JSONMap
+	MetadataHash  pgtype.Text
+	EmbeddingText pgtype.Text
 }
 
 func (q *Queries) CreateEmbedding(ctx context.Context, arg CreateEmbeddingParams) (Embedding, error) {
 	row := q.db.QueryRow(ctx, createEmbedding,
 		arg.DocumentID,
 		arg.ModelName,
-		arg.ChunkText,
 		arg.Embedding,
+		arg.ChunkText,
 		arg.Metadata,
 		arg.MetadataHash,
+		arg.EmbeddingText,
 	)
 	var i Embedding
 	err := row.Scan(
@@ -84,6 +88,7 @@ func (q *Queries) CreateEmbedding(ctx context.Context, arg CreateEmbeddingParams
 		&i.CreatedAt,
 		&i.Metadata,
 		&i.MetadataHash,
+		&i.EmbeddingText,
 	)
 	return i, err
 }
@@ -166,7 +171,7 @@ type FindSimilarEmbeddingsInDocumentParams struct {
 	DocumentID          pgtype.Int8
 	UserID              pgtype.Int8
 	ModelName           EmbeddingModel
-	SimilarityThreshold pgvector.Vector
+	SimilarityThreshold interface{}
 	MetadataHash        pgtype.Text
 }
 
@@ -314,7 +319,7 @@ func (q *Queries) GetDocument(ctx context.Context, arg GetDocumentParams) (Docum
 }
 
 const getEmbedding = `-- name: GetEmbedding :one
-SELECT e.id, e.document_id, e.model_name, e.embedding, e.chunk_text, e.chunk_size, e.created_at, e.metadata, e.metadata_hash FROM embeddings e
+SELECT e.id, e.document_id, e.model_name, e.embedding, e.chunk_text, e.chunk_size, e.created_at, e.metadata, e.metadata_hash, e.embedding_text FROM embeddings e
 JOIN documents d ON d.id = e.document_id
 WHERE e.id = $1 AND d.user_id = $2 LIMIT 1
 `
@@ -337,6 +342,7 @@ func (q *Queries) GetEmbedding(ctx context.Context, arg GetEmbeddingParams) (Emb
 		&i.CreatedAt,
 		&i.Metadata,
 		&i.MetadataHash,
+		&i.EmbeddingText,
 	)
 	return i, err
 }
@@ -433,7 +439,7 @@ func (q *Queries) IncrementAPIUsage(ctx context.Context, userID pgtype.Int8) (Ap
 }
 
 const listDocumentEmbeddings = `-- name: ListDocumentEmbeddings :many
-SELECT e.id, e.document_id, e.model_name, e.embedding, e.chunk_text, e.chunk_size, e.created_at, e.metadata, e.metadata_hash FROM embeddings e
+SELECT e.id, e.document_id, e.model_name, e.embedding, e.chunk_text, e.chunk_size, e.created_at, e.metadata, e.metadata_hash, e.embedding_text FROM embeddings e
 JOIN documents d ON d.id = e.document_id
 WHERE e.document_id = $1 AND d.user_id = $2
   AND ($3::text IS NULL OR $3::text = e.metadata_hash)
@@ -464,6 +470,7 @@ func (q *Queries) ListDocumentEmbeddings(ctx context.Context, arg ListDocumentEm
 			&i.CreatedAt,
 			&i.Metadata,
 			&i.MetadataHash,
+			&i.EmbeddingText,
 		); err != nil {
 			return nil, err
 		}
