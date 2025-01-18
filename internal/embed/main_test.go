@@ -134,34 +134,34 @@ func TestEmbedder(t *testing.T) {
 					assert.Len(t, embeddings[0], 384)
 				},
 			},
-			// {
-			// 	name:    "multiple texts",
-			// 	input:   []string{"Hello, world!", "This is a test"},
-			// 	wantErr: false,
-			// 	validate: func(t *testing.T, embeddings [][]float32) {
-			// 		assert.Len(t, embeddings, 2)
-			// 		assert.NotEmpty(t, embeddings[0])
-			// 		assert.NotEmpty(t, embeddings[1])
-			// 		assert.Len(t, embeddings[0], 384)
-			// 		assert.Len(t, embeddings[1], 384)
-			// 	},
-			// },
-			// {
-			// 	name:    "empty input",
-			// 	input:   []string{},
-			// 	wantErr: true,
-			// 	validate: func(t *testing.T, embeddings [][]float32) {
-			// 		assert.Nil(t, embeddings)
-			// 	},
-			// },
-			// {
-			// 	name:    "nil input",
-			// 	input:   nil,
-			// 	wantErr: true,
-			// 	validate: func(t *testing.T, embeddings [][]float32) {
-			// 		assert.Nil(t, embeddings)
-			// 	},
-			// },
+			{
+				name:    "multiple texts",
+				input:   []string{"Hello, world!", "This is a test"},
+				wantErr: false,
+				validate: func(t *testing.T, embeddings [][]float32) {
+					assert.Len(t, embeddings, 2)
+					assert.NotEmpty(t, embeddings[0])
+					assert.NotEmpty(t, embeddings[1])
+					assert.Len(t, embeddings[0], 384)
+					assert.Len(t, embeddings[1], 384)
+				},
+			},
+			{
+				name:    "empty input",
+				input:   []string{},
+				wantErr: true,
+				validate: func(t *testing.T, embeddings [][]float32) {
+					assert.Nil(t, embeddings)
+				},
+			},
+			{
+				name:    "nil input",
+				input:   nil,
+				wantErr: true,
+				validate: func(t *testing.T, embeddings [][]float32) {
+					assert.Nil(t, embeddings)
+				},
+			},
 		}
 
 		for _, tt := range tests {
@@ -174,83 +174,78 @@ func TestEmbedder(t *testing.T) {
 			tt.validate(t, embeddings)
 		}
 	})
-	//
-	// t.Run("embedding consistency", func(t *testing.T) {
-	// 	embedder, err := GetEmbedder()
-	// 	require.NoError(t, err)
-	// 	defer embedder.Close()
-	//
-	// 	// Same text should produce same embedding
-	// 	text := "Hello, world!"
-	// 	embedding1, err := embedder.GetEmbeddings([]string{text})
-	// 	require.NoError(t, err)
-	//
-	// 	embedding2, err := embedder.GetEmbeddings([]string{text})
-	// 	require.NoError(t, err)
-	//
-	// 	assert.Equal(t, embedding1, embedding2)
-	//
-	// 	// Different texts should produce different embeddings
-	// 	differentText := "Different text"
-	// 	embedding3, err := embedder.GetEmbeddings([]string{differentText})
-	// 	require.NoError(t, err)
-	//
-	// 	assert.NotEqual(t, embedding1[0], embedding3[0])
-	// })
-	//
-	// t.Run("concurrent access", func(t *testing.T) {
-	// 	embedder, err := GetEmbedder()
-	// 	require.NoError(t, err)
-	// 	defer embedder.Close()
-	//
-	// 	done := make(chan bool)
-	// 	for i := 0; i < 10; i++ {
-	// 		go func() {
-	// 			_, err := embedder.GetEmbeddings([]string{"concurrent test"})
-	// 			assert.NoError(t, err)
-	// 			done <- true
-	// 		}()
-	// 	}
-	//
-	// 	// Wait for all goroutines to complete
-	// 	for i := 0; i < 10; i++ {
-	// 		<-done
-	// 	}
-	// })
+	t.Run("embedding consistency", func(t *testing.T) {
+		if testing.Short() {
+			t.Skip("Skipping embedding generation tests")
+		}
+		embedder, err := NewEmbedder()
+		require.NoError(t, err)
+		defer embedder.Close()
+
+		// Same text should produce same embedding
+		text := "Hello, world!"
+		embedding1, err := embedder.GetEmbeddings([]string{text})
+		require.NoError(t, err)
+
+		embedding2, err := embedder.GetEmbeddings([]string{text})
+		require.NoError(t, err)
+
+		assert.Equal(t, embedding1, embedding2)
+
+		// Different texts should produce different embeddings
+		differentText := "Different text"
+		embedding3, err := embedder.GetEmbeddings([]string{differentText})
+		require.NoError(t, err)
+
+		assert.NotEqual(t, embedding1[0], embedding3[0])
+	})
+
+	t.Run("concurrent access", func(t *testing.T) {
+		if testing.Short() {
+			t.Skip("Skipping embedding generation tests")
+		}
+		embedder, err := NewEmbedder()
+		require.NoError(t, err)
+		defer embedder.Close()
+
+		done := make(chan bool)
+		for i := 0; i < 10; i++ {
+			go func() {
+				_, err := embedder.GetEmbeddings([]string{"concurrent test"})
+				assert.NoError(t, err)
+				done <- true
+			}()
+		}
+
+		// Wait for all goroutines to complete
+		for i := 0; i < 10; i++ {
+			<-done
+		}
+	})
 }
 
-//	func TestEmbedderErrors(t *testing.T) {
-//		t.Run("invalid model directory", func(t *testing.T) {
-//			_, err := GetEmbedder(
-//				WithModelDir("/nonexistent/directory"),
-//				WithModelName("invalid-model"),
-//			)
-//			assert.Error(t, err)
-//		})
-//
-//		t.Run("cleanup", func(t *testing.T) {
-//			embedder, err := GetEmbedder()
-//			require.NoError(t, err)
-//
-//			// Test double close
-//			assert.NoError(t, embedder.Close())
-//			assert.NoError(t, embedder.Close())
-//
-//			// Verify operations after close fail
-//			_, err = embedder.GetEmbeddings([]string{"test"})
-//			assert.Error(t, err)
-//		})
-//	}
-//
+func TestEmbedderErrors(t *testing.T) {
+	t.Run("invalid model directory", func(t *testing.T) {
+		_, err := NewEmbedder(
+			WithModelDir("/nonexistent/directory"),
+			WithModelName("invalid-model"),
+		)
+		assert.Error(t, err)
+	})
 
-// // TestMain handles setup and teardown for all tests
-// func TestMain(m *testing.M) {
-// 	// Setup code if needed
-//
-// 	// Run tests
-// 	code := m.Run()
-//
-// 	// Cleanup code if needed
-//
-// 	os.Exit(code)
-// }
+	t.Run("cleanup", func(t *testing.T) {
+		if testing.Short() {
+			t.Skip("Skipping embedding generation tests")
+		}
+		embedder, err := NewEmbedder()
+		require.NoError(t, err)
+
+		// Test double close
+		assert.NoError(t, embedder.Close())
+		assert.NoError(t, embedder.Close())
+
+		// Verify operations after close fail
+		_, err = embedder.GetEmbeddings([]string{"test"})
+		assert.Error(t, err)
+	})
+}
