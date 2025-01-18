@@ -39,9 +39,9 @@ func GetSingleEmbedding(ctx context.Context, text string) ([]float32, error) {
 
 func AddEmbedding(
 	ctx context.Context,
+	postgresConnStr string,
 	filePath string,
 	text string,
-	postgresConnStr string,
 	metadata *types.JSONMap,
 ) (*Embedding, error) {
 	embedding, err := GetSingleEmbedding(ctx, text)

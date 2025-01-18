@@ -49,7 +49,7 @@ SELECT
     SUM(e.chunk_size) as total_bytes,
     COUNT(DISTINCT d.id) as document_count
 FROM embeddings e
-LEFT JOIN embeddings e ON e.document_id = d.id;
+LEFT JOIN documents d ON e.document_id = d.id;
 
 -- name: FindTopKNNEmbeddings :many
 SELECT 

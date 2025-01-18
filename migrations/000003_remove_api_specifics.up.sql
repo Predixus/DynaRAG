@@ -58,3 +58,6 @@ CREATE TRIGGER update_chunk_sizes_trigger
 AFTER INSERT OR DELETE ON embeddings
 FOR EACH ROW
 EXECUTE FUNCTION update_chunk_sizes();
+
+-- add an index for the document file path
+CREATE UNIQUE INDEX documents_file_path_idx ON documents(file_path);
