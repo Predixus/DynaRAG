@@ -3,14 +3,12 @@ module github.com/Predixus/DynaRAG
 go 1.23.3
 
 require (
-	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/golang-migrate/migrate/v4 v4.18.1
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/knights-analytics/hugot v0.3.0
 	github.com/lib/pq v1.10.9
 	github.com/pgvector/pgvector-go v0.2.2
-	github.com/redis/go-redis/v9 v9.7.0
 	github.com/stretchr/testify v1.10.0
 )
 
@@ -35,10 +33,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.3 // indirect
 	github.com/aws/smithy-go v1.22.1 // indirect
 	github.com/bodaay/HuggingFaceModelDownloader v0.0.0-20241026025743-cbf2f5e84f54 // indirect
-	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/daulet/tokenizers v1.20.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect

@@ -38,7 +38,8 @@ func DefaultConfig() EmbedderConfig {
 
 var (
 	singleton *Embedder
-	once      sync.Once
+	mu        sync.RWMutex
+	config    *EmbedderConfig
 )
 
 // Configurations - functional option config pattern
@@ -57,13 +58,34 @@ func WithModelName(name string) Option {
 	}
 }
 
-// GetEmbedder returns a singleton instance of Embedder with the given options
-func GetEmbedder(opts ...Option) (*Embedder, error) {
-	var initError error
-	once.Do(func() {
-		singleton, initError = newEmbedder(opts...)
-	})
-	return singleton, initError
+// NewEmbedder returns a singleton instance of Embedder with the given options
+func NewEmbedder(opts ...Option) (*Embedder, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	newConfig := DefaultConfig()
+	for _, opt := range opts {
+		opt(&newConfig)
+	}
+
+	if singleton != nil && (config == nil || *config != newConfig) {
+		err := singleton.Close()
+		if err != nil {
+			return nil, fmt.Errorf("failed to close existing embedder: %w", err)
+		}
+		singleton = nil
+	}
+
+	if singleton == nil {
+		var err error
+		singleton, err = newEmbedder(opts...)
+		if err != nil {
+			return nil, err
+		}
+		config = &newConfig
+	}
+
+	return singleton, nil
 }
 
 func newEmbedder(opts ...Option) (*Embedder, error) {

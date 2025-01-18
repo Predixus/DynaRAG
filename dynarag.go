@@ -2,6 +2,7 @@ package dynarag
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -141,7 +142,7 @@ type Client struct {
 
 func New(cfg Config) (*Client, error) {
 	if cfg.PostgresConnStr == "" {
-		return nil, ErrMissingConnStr
+		return nil, errors.New("postgres connection string is required")
 	}
 
 	client := &Client{

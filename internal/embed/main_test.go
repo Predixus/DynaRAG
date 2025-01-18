@@ -9,6 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func resetEmbedder() {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if singleton != nil {
+		_ = singleton.Close()
+		singleton = nil
+	}
+	config = nil
+}
+
 func TestConfigOptions(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -65,11 +76,15 @@ func TestEmbedder(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 
+	t.Cleanup(func() {
+		resetEmbedder()
+	})
+
 	t.Run("initialisation", func(t *testing.T) {
 		if testing.Short() {
 			t.Skip("Skipping model initialisation test")
 		}
-		embedder, err := GetEmbedder(WithModelDir(tmpDir))
+		embedder, err := NewEmbedder(WithModelDir(tmpDir))
 		require.NoError(t, err)
 		require.NotNil(t, embedder)
 		defer embedder.Close()
@@ -81,18 +96,24 @@ func TestEmbedder(t *testing.T) {
 	})
 
 	t.Run("singleton pattern", func(t *testing.T) {
-		first, err := GetEmbedder()
+		if testing.Short() {
+			t.Skip("Skipping singleton check test")
+		}
+		first, err := NewEmbedder(WithModelDir(tmpDir))
 		require.NoError(t, err)
 		defer first.Close()
 
-		second, err := GetEmbedder()
+		second, err := NewEmbedder(WithModelDir(tmpDir))
 		require.NoError(t, err)
 
 		assert.Same(t, first, second, "GetEmbedder should return the same instance")
 	})
 
 	t.Run("embedding generation", func(t *testing.T) {
-		embedder, err := GetEmbedder()
+		if testing.Short() {
+			t.Skip("Skipping embedding generation tests")
+		}
+		embedder, err := NewEmbedder(WithModelDir(tmpDir))
 		require.NoError(t, err)
 		defer embedder.Close()
 
