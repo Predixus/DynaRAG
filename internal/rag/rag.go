@@ -97,7 +97,7 @@ func (rb *RAGMessageBuilder) BuildSystemPrompt() (llm.Message, error) {
 	}
 
 	return llm.Message{
-		Role:    llm.SystemRole,
+		Role:    llm.RoleSystem,
 		Content: systemPrompt,
 	}, nil
 }
@@ -123,7 +123,7 @@ func GenerateRAGResponse(documents []Document, userQuery string, writer io.Write
 	}
 
 	// Create LLM instance
-	llm, err := llm.NewLLMFromEnv()
+	llm, err := llm.NewClient()
 	if err != nil {
 		return fmt.Errorf("failed to create LLM: %v", err)
 	}
