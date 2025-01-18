@@ -8,12 +8,12 @@ import (
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
 
-//go:embed internal/store/migrations/*.sql
+//go:embed migrations/*.sql
 var migrations embed.FS
 
 // initMigrations runs database migrations using embedded migration files
 func initMigrations(postgresConnStr string) error {
-	d, err := iofs.New(migrations, "store/migrations")
+	d, err := iofs.New(migrations, "migrations")
 	if err != nil {
 		return fmt.Errorf("failed to load embedded migrations: %w", err)
 	}

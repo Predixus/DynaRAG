@@ -22,7 +22,7 @@ var (
 
 func init() {
 	var err error
-	embedder, err = embed.GetEmbedder()
+	embedder, err = embed.NewEmbedder()
 	if err != nil {
 		slog.Error("Failed to initialise embedder", "error", err)
 		return
