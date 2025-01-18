@@ -1,39 +1,34 @@
--- Drop triggers first
+-- drop triggers that depend on the functions
 DROP TRIGGER IF EXISTS reset_user_chunk_size_trigger ON documents;
 DROP TRIGGER IF EXISTS create_api_usage_record ON users;
+DROP TRIGGER IF EXISTS update_chunk_sizes_trigger ON embeddings;
 
--- Drop functions
+-- drop functions that reference user-related tables
 DROP FUNCTION IF EXISTS initialize_api_usage();
 DROP FUNCTION IF EXISTS increment_api_usage(BIGINT);
 DROP FUNCTION IF EXISTS reset_user_chunk_size();
+DROP FUNCTION IF EXISTS update_chunk_sizes();
 
--- Drop foreign key constraints
-ALTER TABLE documents DROP CONSTRAINT IF EXISTS documents_user_id_fkey;
-ALTER TABLE api_usage DROP CONSTRAINT IF EXISTS api_usage_user_id_fkey;
-
--- Drop indexes
+-- drop indexes
 DROP INDEX IF EXISTS api_usage_user_id_idx;
 
--- Drop the column from documents
-ALTER TABLE documents DROP COLUMN IF EXISTS user_id;
+-- drop foreign key constraints
+ALTER TABLE documents 
+    DROP CONSTRAINT IF EXISTS documents_user_id_fkey;
+ALTER TABLE api_usage 
+    DROP CONSTRAINT IF EXISTS api_usage_user_id_fkey;
 
--- Now we can safely drop the tables
+-- drop dependent tables first
 DROP TABLE IF EXISTS api_usage;
+
+-- modify documents table to remove user_id
+ALTER TABLE documents 
+    DROP COLUMN IF EXISTS user_id;
+
+-- drop users table last since other tables depended on it
 DROP TABLE IF EXISTS users;
-DROP INDEX api_usage_user_id_idx;
 
--- Drop functions and triggers
-DROP FUNCTION initialize_api_usage;
-DROP FUNCTION increment_api_usage;
-DROP FUNCTION reset_user_chunk_size;
-DROP TRIGGER reset_user_chunk_size_trigger ON documents;
-
--- Modify document table
-ALTER TABLE documents
-DROP COLUMN user_id,
-DROP CONSTRAINT documents_user_id_fkey;
-
--- Update update_chunk_sizes function to remove user references
+-- create new update_chunk_sizes function without user references
 CREATE OR REPLACE FUNCTION update_chunk_sizes()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -57,3 +52,9 @@ BEGIN
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
+
+-- recreate the trigger for chunk size updates
+CREATE TRIGGER update_chunk_sizes_trigger
+AFTER INSERT OR DELETE ON embeddings
+FOR EACH ROW
+EXECUTE FUNCTION update_chunk_sizes();
