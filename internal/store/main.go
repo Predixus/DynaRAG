@@ -3,41 +3,29 @@ package store
 import (
 	"context"
 	"encoding/json"
-	"log"
-	"os"
+	"log/slog"
 	"sync"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/joho/godotenv"
 	"github.com/pgvector/pgvector-go"
 
-	"github.com/Predixus/DynaRAG/embed"
+	"github.com/Predixus/DynaRAG/internal/embed"
+	"github.com/Predixus/DynaRAG/internal/utils"
 	"github.com/Predixus/DynaRAG/types"
-	"github.com/Predixus/DynaRAG/utils"
 )
 
 var (
-	once_v2           sync.Once
-	postgres_conn_str string
-	embedder          *embed.Embedder
+	once_v2  sync.Once
+	embedder *embed.Embedder
 )
 
-func setup() string {
-	postgres_conn_str := os.Getenv("POSTGRES_CONN_STR")
-	if postgres_conn_str == "" {
-		panic("`POSTGRES_CONN_STR` not set")
-	}
-	return postgres_conn_str
-}
-
 func init() {
-	godotenv.Load()
-	postgres_conn_str = setup()
 	var err error
-	embedder, err = embed.GetEmbedder()
+	embedder, err = embed.NewEmbedder()
 	if err != nil {
-		log.Fatalf("Failed to initialize embedder: %v", err)
+		slog.Error("Failed to initialise embedder", "error", err)
+		return
 	}
 }
 
@@ -51,17 +39,17 @@ func GetSingleEmbedding(ctx context.Context, text string) ([]float32, error) {
 
 func AddEmbedding(
 	ctx context.Context,
-	userId string,
+	postgresConnStr string,
 	filePath string,
 	text string,
-	metadata map[string]interface{},
+	metadata *types.JSONMap,
 ) (*Embedding, error) {
 	embedding, err := GetSingleEmbedding(ctx, text)
 	if err != nil {
 		return nil, err
 	}
 
-	conn, err := pgx.Connect(ctx, postgres_conn_str)
+	conn, err := pgx.Connect(ctx, postgresConnStr)
 	if err != nil {
 		return nil, err
 	}
@@ -75,18 +63,7 @@ func AddEmbedding(
 
 	q := New(tx)
 
-	user, err := q.CreateUser(ctx, userId)
-	if err != nil {
-		return nil, err
-	}
-
-	doc, err := q.CreateDocument(ctx, CreateDocumentParams{
-		UserID: pgtype.Int8{
-			Int64: user.ID,
-			Valid: true,
-		},
-		FilePath: filePath,
-	})
+	doc, err := q.CreateDocument(ctx, filePath)
 	if err != nil {
 		return nil, err
 	}
@@ -96,17 +73,18 @@ func AddEmbedding(
 	if metadata != nil {
 		metadataJsonBytes, err := json.Marshal(metadata)
 		if err != nil {
-			log.Println("Error marshalling metadata: ", err)
+			slog.Error("Error marshalling metadata", "error", err)
 			return nil, err
 		}
 
 		metadataHash, err = utils.CalculateMetadataHash(metadataJsonBytes)
 		if err != nil {
-			log.Println("Error calculating hash on Metadata: ", err)
+			slog.Error("Error calculating hash on Metadata", "error", err)
 			return nil, err
 		}
 	} else {
-		metadata = make(map[string]interface{})
+		metadataRaw := types.JSONMap(make(map[string]interface{}))
+		metadata = &metadataRaw
 	}
 
 	embeddingRecord, err := q.CreateEmbedding(ctx, CreateEmbeddingParams{
@@ -117,7 +95,7 @@ func AddEmbedding(
 		ModelName: "all-MiniLM-L6-v2",
 		ChunkText: text,
 		Embedding: pgvector.NewVector(embedding),
-		Metadata:  metadata,
+		Metadata:  *metadata,
 		MetadataHash: pgtype.Text{
 			String: metadataHash,
 			Valid:  true,
@@ -136,7 +114,7 @@ func AddEmbedding(
 
 func GetTopKEmbeddings(
 	ctx context.Context,
-	userId string,
+	postgresConnStr string,
 	text string,
 	k int8,
 	metadata *types.JSONMap,
@@ -146,18 +124,13 @@ func GetTopKEmbeddings(
 		return nil, err
 	}
 
-	conn, err := pgx.Connect(ctx, postgres_conn_str)
+	conn, err := pgx.Connect(ctx, postgresConnStr)
 	if err != nil {
 		return nil, err
 	}
 	defer conn.Close(ctx)
 
 	q := New(conn)
-
-	user, err := q.CreateUser(ctx, userId)
-	if err != nil {
-		return nil, err
-	}
 
 	// calculate metadatahash
 	var metadataHashPtr *string
@@ -167,7 +140,6 @@ func GetTopKEmbeddings(
 			return nil, err
 		}
 		metadataHash, err := utils.CalculateMetadataHash(jsonMetadataBytes)
-		log.Println("MetadataHash: ", metadataHash)
 		metadataHashPtr = &metadataHash
 		if err != nil {
 			return nil, err
@@ -177,11 +149,7 @@ func GetTopKEmbeddings(
 	return q.FindTopKNNEmbeddings(ctx, FindTopKNNEmbeddingsParams{
 		QueryEmbedding: pgvector.NewVector(embedding),
 		ModelName:      "all-MiniLM-L6-v2",
-		UserID: pgtype.Int8{
-			Int64: user.ID,
-			Valid: true,
-		},
-		K: int32(k),
+		K:              int32(k),
 		MetadataHash: pgtype.Text{
 			Valid: metadataHashPtr != nil,
 			String: func() string {
@@ -204,8 +172,12 @@ type DeletionStats struct {
 
 // DeleteUserEmbeddings deletes all embeddings and documents for a given user
 // If dryRun is true, returns what would be deleted without actually deleting
-func DeleteUserEmbeddings(ctx context.Context, userId string, dryRun bool) (*DeletionStats, error) {
-	conn, err := pgx.Connect(ctx, postgres_conn_str)
+func DeleteUserEmbeddings(
+	ctx context.Context,
+	postgresConnStr string,
+	dryRun bool,
+) (*DeletionStats, error) {
+	conn, err := pgx.Connect(ctx, postgresConnStr)
 	if err != nil {
 		return nil, err
 	}
@@ -219,23 +191,14 @@ func DeleteUserEmbeddings(ctx context.Context, userId string, dryRun bool) (*Del
 
 	q := New(tx)
 
-	// Get user ID first
-	user, err := q.CreateUser(ctx, userId)
-	if err != nil {
-		return nil, err
-	}
-
 	// Get statistics first
-	stats, err := q.GetUserStorageStats(ctx, user.ID)
+	stats, err := q.GetStorageStats(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get affected file paths
-	docs, err := q.ListUserDocuments(ctx, pgtype.Int8{
-		Int64: user.ID,
-		Valid: true,
-	})
+	docs, err := q.ListDocuments(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +211,7 @@ func DeleteUserEmbeddings(ctx context.Context, userId string, dryRun bool) (*Del
 	deletionStats := &DeletionStats{
 		EmbeddingCount: stats.EmbeddingCount,
 		DocumentCount:  stats.DocumentCount,
-		TotalBytes:     stats.TotalBytes.Int64,
+		TotalBytes:     stats.TotalBytes,
 		FilePaths:      filePaths,
 	}
 
@@ -258,10 +221,7 @@ func DeleteUserEmbeddings(ctx context.Context, userId string, dryRun bool) (*Del
 	}
 
 	// Actually perform the deletion
-	err = q.DeleteUserEmbeddings(ctx, pgtype.Int8{
-		Int64: user.ID,
-		Valid: true,
-	})
+	err = q.DeleteEmbeddings(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -274,8 +234,8 @@ func DeleteUserEmbeddings(ctx context.Context, userId string, dryRun bool) (*Del
 	return deletionStats, nil
 }
 
-func GetUserStats(ctx context.Context, userId string) (*GetUserStatsRow, error) {
-	conn, err := pgx.Connect(ctx, postgres_conn_str)
+func GetStats(ctx context.Context, postgresConnStr string) (*GetStatsRow, error) {
+	conn, err := pgx.Connect(ctx, postgresConnStr)
 	if err != nil {
 		return nil, err
 	}
@@ -283,12 +243,7 @@ func GetUserStats(ctx context.Context, userId string) (*GetUserStatsRow, error) 
 
 	q := New(conn)
 
-	user, err := q.CreateUser(ctx, userId)
-	if err != nil {
-		return nil, err
-	}
-
-	stats, err := q.GetUserStats(ctx, user.ID)
+	stats, err := q.GetStats(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -298,22 +253,16 @@ func GetUserStats(ctx context.Context, userId string) (*GetUserStatsRow, error) 
 
 func ListUserChunks(
 	ctx context.Context,
-	userId string,
+	postgresConnStr string,
 	metadata *types.JSONMap,
-) ([]ListUserChunksRow, error) {
-	conn, err := pgx.Connect(ctx, postgres_conn_str)
+) ([]ListChunksRow, error) {
+	conn, err := pgx.Connect(ctx, postgresConnStr)
 	if err != nil {
 		return nil, err
 	}
 	defer conn.Close(ctx)
 
 	q := New(conn)
-
-	// Get user ID first
-	user, err := q.CreateUser(ctx, userId)
-	if err != nil {
-		return nil, err
-	}
 
 	// calculate metadatahash
 	var metadataHashPtr *string
@@ -323,54 +272,23 @@ func ListUserChunks(
 			return nil, err
 		}
 		metadataHash, err := utils.CalculateMetadataHash(jsonMetadataBytes)
-		log.Println("MetadataHash: ", metadataHash)
 		metadataHashPtr = &metadataHash
 		if err != nil {
 			return nil, err
 		}
 	}
 	// Get all chunks for the user
-	chunks, err := q.ListUserChunks(ctx, ListUserChunksParams{
-		UserID: pgtype.Int8{
-			Int64: user.ID,
-			Valid: true,
-		},
-		MetadataHash: pgtype.Text{String: func() string {
-			if metadataHashPtr != nil {
-				return *metadataHashPtr
-			}
-			return ""
-		}(), Valid: metadataHashPtr != nil},
-	})
+	chunks, err := q.ListChunks(ctx, pgtype.Text{String: func() string {
+		if metadataHashPtr != nil {
+			return *metadataHashPtr
+		}
+		return ""
+	}(), Valid: metadataHashPtr != nil},
+	)
 	if err != nil {
-		log.Println("Error when listing user chunks")
+		slog.Error("Error when listing user chunks", "error", err)
 		return nil, err
 	}
 
 	return chunks, nil
-}
-
-func IncrementAPIUsage(ctx context.Context, userId string) (*ApiUsage, error) {
-	conn, err := pgx.Connect(ctx, postgres_conn_str)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close(ctx)
-
-	q := New(conn)
-
-	user, err := q.CreateUser(ctx, userId)
-	if err != nil {
-		return nil, err
-	}
-
-	usage, err := q.IncrementAPIUsage(ctx, pgtype.Int8{
-		Int64: user.ID,
-		Valid: true,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &usage, nil
 }

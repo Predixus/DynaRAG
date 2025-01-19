@@ -2,11 +2,11 @@ version: "2"
 sql:
   - engine: "postgresql"
     queries: "query.sql"
-    schema: "store/migrations"
+    schema: "migrations"
     gen:
       go:
         package: "store"
-        out: "store"
+        out: "internal/store"
         sql_package: "pgx/v5"
         overrides:
           - db_type: "jsonb"

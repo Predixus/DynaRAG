@@ -52,10 +52,9 @@ Searched Documents:
 - #ref-2: Document 2 Source
 ---
 
-<|eot_id|>
+<|end_of_text|>
 
 <|start_header_id|>user<|end_header_id|>
 {{.Query}}
-<|eot_id|>
 
 <|start_header_id|>assistant<|end_header_id|>

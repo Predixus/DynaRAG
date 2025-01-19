@@ -1,29 +1,25 @@
-
 ![Group 6](https://github.com/user-attachments/assets/1b37d34c-6f54-4e34-9a93-c00757377f7f)
 
 ![GitHub Release](https://img.shields.io/github/v/release/Predixus/DynaRAG)
+[![Discord Widget](https://discord.com/api/guilds/1329817069146869831/widget.png)](https://discord.gg/shZeg7bYpC)
 
-A _fast_, _dynamic_, and _production-ready_ RAG backend - so you can focus on the chunks.
+A _fast_, _robust_, and _production-ready_ RAG backend - so you can focus on the chunks.
 
 > [!CAUTION]
 > DynaRAG is in a Pre-release state. Full release and stability will arrive soon.
 
 ## Table of Contents
+
 - [What is DynaRAG?](#what-is-dynarag)
 - [Core Features](#core-features)
 - [Technical Benefits](#technical-benefits)
 - [About Us](#about-us)
 - [Target Users](#target-users)
 - [Why DynaRAG?](#why-dynarag)
-- [Getting Started](#getting-started)
-  - [Managed Service](#managed-service)
-  - [Docker Container](#docker-container)
-  - [Run from Source](#run-from-source)
-- [Development Guide](#development-guide)
-  - [Prerequisites](#prerequisites)
-  - [Initial Setup](#initial-setup)
-  - [Running the API](#running-the-api)
-  - [Making Requests](#making-requests)
+- [Prerequisites](#prerequisites)
+- [Module Structure](#module-structure)
+  - [Feature Extraction / Embedding](#feature-extraction--embedding)
+- [License](#license)
 
 ## What is DynaRAG?
 
@@ -31,32 +27,52 @@ DynaRAG is a RAG (Retrieval-Augmented Generation) backend that implements a simp
 
 In this way, it is no more complex than the simplest RAG examples that you may find on Haystack or Langchain.
 
-Instead, DynaRAG focuses on providing a highly performant backend for adding, retrieving and filtering text chunks.
+Instead, DynaRAG focuses on providing a highly performant backend for adding, retrieving and filtering
+text chunks.
 
-DynaRAG does this by pushing the inference and database-query latencies into the parts of the RAG pipeline that yield the lowest round trip time.
+DynaRAG does this by pushing the inference and database-query latencies into the parts of the RAG
+pipeline that yield the lowest round trip time.
 
 ## Core Features
 
-- Naive RAG with Go-managed feature extraction models (props to
-[hugot](https://github.com/knights-analytics/hugot) for building awesome go bindings for Onnx)
-- PGVector based embedding store
-- Rate limiting with the cache in Redis
-- Data separation by `UserId`
-- LLM provider integration for summarisation:
-  - Groq
-  - OpenAI (coming in 2025)
-  - Anthropic (coming in 2025)
-  - Ollama (coming in 2025)
+- Naive RAG with Go-managed feature extraction models (props to [hugot](https://github.com/knights-analytics/hugot) for building
+  awesome go bindings for Onnx)
+
+## Core Functionality
+
+DynaRAG provides several key operations through its client interface:
+
+- `Chunk`: Add new text chunks with associated metadata and file paths
+- `Similar`: Find semantically similar chunks using vector similarity search
+- `Query`: Generate RAG responses by combining relevant chunks with LLM processing
+- `PurgeChunks`: Remove stored chunks (with optional dry-run)
+- `GetStats`: Retrieve usage statistics
+- `ListChunks`: List all stored chunks with their metadata
+
+During initialisation (`client.Initialise()`), DynaRAG automatically runs database migrations to:
+
+1. Set up the required PostgreSQL extensions (pgvector)
+2. Create necessary tables for storing embeddings and metadata
+3. Configure indexes for efficient vector similarity search
+
+These migrations ensure your database is properly configured for vector operations and chunk
+storage with DynaRAG. The migrations are managed using `golang-migrate`.
+
+> [!NOTE]
+> The database must be accessible with the provided connection string and the user must have
+> sufficient privileges to create extensions and tables.
 
 ## Technical Benefits
 
 DynaRAG is written entirely in Go, including feature extraction models interfaced with via the Onnx
 runtime. This provides several advantages over Python-based approaches:
 
-- Inherently faster performance
+- Inherently faster performance, as we can leverage Golangs awesome concurrency model
 - Single binary compilation for easier deployment
-- Enhanced memory safety for large data throughput in cloud services
+- Generally, better memory safety
 - No performance loss in HTTP layer communication with feature extraction service
+- Strongly typed from the offset
+- Easily slots in to applications that Golang was made for (i.e. servers), without a networking overhead
 
 ## About Us
 
@@ -72,148 +88,51 @@ chunks that directly represent potential answers to user questions.
 ## Why DynaRAG?
 
 DynaRAG was developed to address the need for a simple, self-hosted RAG solution for internal
-and client projects. Key considerations include:
+and client projects. DynaRAG was born out of our need for a fast, robust and simple
+RAG backend that didn't break the bank and allowed us to own the inference resources.
+
+The key considerations to the project were:
 
 - Minimal project footprint
 - Cost-effective implementation
 - Focus on optimal chunking rather than complex retrieval
+- Ability to own inference capability and make the most use of compute resources available
 
 > [!TIP]
-> Focus on the quality of your text chunks. If each chunk clearly represents
-an answer to likely questions, naive RAG becomes highly effective.
+> Focus on the quality of your text chunks when using DynaRAG. If each chunk clearly represents
+> an answer to likely questions, naive RAG becomes highly effective.
 
-## Getting Started
+## Prerequisites
 
-Choose the deployment option that best suits your needs:
+DynaRAG depends on the Onnx runtime to run the embedding pipelines. Ensure that the runtime is
+present in the default directory (`/usr/lib/onnxruntime.so`). It can be downloaded from the
+Microsoft [downloads page](https://github.com/microsoft/onnxruntime/releases).
 
-### Managed Service
-- Coming in 2025
-
-### Docker Container
-- Coming soon
-
-### Run from Source
-- Follow the [development guide](#development-guide) below
-
-## API Docs
-- Coming Soon.
-
-## Development Guide
-
-### Prerequisites
-
-- Docker with `docker compose`
-- [`sqlc`](https://docs.sqlc.dev/en/stable/overview/install.html)
-- [`air`](https://github.com/air-verse/air)
-
-### Initial Setup
-
-1. Start PGVector and Redis:
-```bash
-docker compose up -d
-```
-
-2. Configure environment:
-```bash
-cp ./.env.example ./.env
-```
-
-3. Update environment variables:
-```env
-POSTGRES_CONN_STR=postgresql://admin:root@localhost:5053/main
-REDIS_URL=redis://:53c2b86b1b3e8e91ac502c54cf49fcfd91e7d1271130b4de@localhost:6380
-```
-These URLs match the credentials configured in the `docker-compose.yml` file.
-
-4. Install required binaries:
-Collect the correct `onnxruntime.*.[tgz/zip]` file for your operating system and plafrom from 
-the Microsoft/onnxruntime [Releases Page](https://github.com/microsoft/onnxruntime/releases).
-
-Extract the contents of this file and place the `onnxruntime.so` library inside `.bin/`.
-
-Do the same with the the relevant `tokenizers.*.tar.gz` static object file from the `daulet/tokenizers`
-[Releases Page](https://github.com/daulet/tokenizers/releases). Place `tokenizers.a` inside
-`./bin/`.
-
-> [!NOTE]
-> The `tokenizers` library only has static objects built for Linux (amd64/arm64/x86_64/aarch64) and
-MacOS (darwin-arm64/darwin-aarch64). If you are running DynaRAG on Windows, either use WSL (Windows
-Subssystem for Linux) or build the tokenizers static object for Windows.
-
-### Running the API
-
-Development mode:
-```bash
-air
-```
-
-Or build and run directly:
-```bash
-go build main.go
-./main
-```
-### JWT Bearer Token
-DynaRAG currently requires a [jwt](
-https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmcmVkIiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjk5OTk5OTk5OTksIm5iZiI6MTUxNjIzOTAyMX0.XQhc2JJvw7llZlNbN22ifaEsYHmKbmlsyF4yNqx_XYE)
-token as Bearer Authorization. The token must have the
-following structure:
-
-*Header*
-```json
-{
-  "alg": "HS256",
-  "typ": "JWT"
-}
-```
-*Payload*
-```json
-{
-  "sub": "test_user_1234",  # this is the UserID
-  "iat": 1516239022,        # time of issue
-  "exp": 9999999999,        # when the token expires
-  "nbf": 1516239021         # when the token is valid from
-}
-```
-
-You must then sign your JWT with the secret stored in the `JWT_SECRET` environment variable.
-
-### Making Requests
-
-Via curl:
-```bash
-curl -X GET "http://localhost:7890/stats" \
--H "Authorization: Bearer <your_signed_jwt>" \
--H "Accept: */*" \
--H "Connection: keep-alive"
-```
-
-Additional options:
-- Use [Postman](https://predixus.postman.co/workspace/Predixus~6a7e467f-45da-4e1d-8583-cc2611bf0431/collection/35165780-5ace5502-2a05-4179-a0c8-ff27dba0df9b?action=share&creator=35165780)
-- Use the official [Python Client](https://github.com/Predixus/DynaRAG-Python-Client)
+The Go bindings for Huggingface tokenisers is also required. Download it from [this repo](https://github.com/daulet/tokenizers/releases) and
+place it in the default location `/usr/lib/tokenizers.a`.
 
 ## Module Structure
+
 The DynaRAG Go! module is split into several packages:
-- `llm` - defines code to interface directly with the LLM provider (Groq, Ollama etc.)
-- `middleware` - defines middleware that is run on each http request
-- `store` - the interface to the PGVector store. The home of the sqlc auto-generated code and the migrations
-managed by `go-migrate`
-- `embed` - the embedding process powered by [Hugot](https://github.com/knights-analytics/hugot)
-- `rag` - code that defines the final summarisation layer, along with system prompts
+
+- `internal/llm` - defines code to interface directly with the LLM provider (Groq, Ollama etc.)
+- `internal/store` - the interface to the PGVector store. The home of the sqlc auto-generated code and the migrations
+  managed by `go-migrate`
+- `internal/embed` - the embedding process powered by [Hugot](https://github.com/knights-analytics/hugot)
+- `internal/rag` - code that defines the final summarisation layer, along with system prompts
 - `types` - globally used types, some of which are used by `sqlc` during code generation
-- `utils` - miscellaneous utilities
-
-`main.go` defines the HTTP server, where functionality from the various modules are stitched together.
-
-`query.sql` defines raw pSQL queries that drive the interactions with the PGVector instance.
+- `internal/utils` - miscellaneous utilities
+- `migrations` - contains the Postgres migrations required to configure your postgres instance for DynaRAG
+  `query.sql` defines raw pSQL queries that drive the interactions with the PGVector instance.
 
 ### Feature Extraction / Embedding
+
 Feature extraction (conversion of the text chunks into vectors) is performed through Hugot via the
 Onnx runtime.
 
-During startup of the HTTP server, the configured models will be downloaded from Huggingface and
-stored in the ./models/ folder. This will only be done once to obtain the relevant .onnx binaries.
+On inference, the required models will be downloaded from Huggingface and stored in the ./models/
+folder. This will only be done once to obtain the relevant .onnx binaries.
 
 ## License
 
 DynaRAG is licensed under the BSD 3-Clause License. See [LICENSE](LICENSE) for details.
-

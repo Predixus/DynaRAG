@@ -4,10 +4,9 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
-	"io"
 	"text/template"
 
-	"github.com/Predixus/DynaRAG/llm"
+	"github.com/Predixus/DynaRAG/internal/llm"
 )
 
 // Document represents a single document with its metadata
@@ -17,14 +16,46 @@ type Document struct {
 	Content string `json:"content"`
 }
 
-// RAGPromptConfig holds the configuration for RAG system prompts
-type RAGPromptConfig struct {
-	Documents []Document
-	// Add any additional configuration parameters here
-	MaxTokens     int
-	Temperature   float32
-	ResponseStyle string
-	Query         string
+// RAGConfig holds the configuration for RAG system prompts
+type RAGConfig struct {
+	Documents     []Document // Changed from documents to Documents
+	MaxTokens     int        // Changed from maxTokens to MaxTokens
+	Temperature   float32    // Changed from temperature to Temperature
+	ResponseStyle string     // Changed from responseStyle to ResponseStyle
+	Query         string     // Changed from query to Query
+}
+
+// Option is a function type that modifies RAGConfig
+type Option func(*RAGConfig)
+
+// WithMaxTokens sets the maximum tokens for the RAG configuration
+func WithMaxTokens(tokens int) Option {
+	return func(c *RAGConfig) {
+		c.MaxTokens = tokens
+	}
+}
+
+// WithTemperature sets the temperature for the RAG configuration
+func WithTemperature(temp float32) Option {
+	return func(c *RAGConfig) {
+		c.Temperature = temp
+	}
+}
+
+// WithResponseStyle sets the response style for the RAG configuration
+func WithResponseStyle(style string) Option {
+	return func(c *RAGConfig) {
+		c.ResponseStyle = style
+	}
+}
+
+// defaultConfig returns a RAGConfig with default values
+func defaultConfig() *RAGConfig {
+	return &RAGConfig{
+		MaxTokens:     2048,
+		Temperature:   0.2,
+		ResponseStyle: "concise and factual",
+	}
 }
 
 //go:embed rag_prompt_with_initial_query.txt
@@ -53,7 +84,7 @@ func (tm *TemplateManager) RegisterTemplate(name, templateContent string) error 
 }
 
 // ExecuteTemplate renders a template with the given configuration
-func (tm *TemplateManager) ExecuteTemplate(name string, config RAGPromptConfig) (string, error) {
+func (tm *TemplateManager) ExecuteTemplate(name string, config RAGConfig) (string, error) {
 	tmpl, exists := tm.templates[name]
 	if !exists {
 		return "", fmt.Errorf("template %s not found", name)
@@ -70,17 +101,26 @@ func (tm *TemplateManager) ExecuteTemplate(name string, config RAGPromptConfig) 
 // RAGMessageBuilder helps construct message sequences for RAG-based prompts
 type RAGMessageBuilder struct {
 	templateManager *TemplateManager
-	config          RAGPromptConfig
+	config          *RAGConfig
 }
 
 // NewRAGMessageBuilder creates a new RAG message builder
-func NewRAGMessageBuilder(config RAGPromptConfig) (*RAGMessageBuilder, error) {
-	tm := NewTemplateManager()
+func NewRAGMessageBuilder(
+	documents []Document,
+	query string,
+	opts ...Option,
+) (*RAGMessageBuilder, error) {
+	config := defaultConfig()
+	config.Documents = documents
+	config.Query = query
 
-	// Register the default template
-	err := tm.RegisterTemplate("default_rag", defaultRAGTemplate)
-	if err != nil {
-		return nil, fmt.Errorf("failed to register default template: %v", err)
+	for _, opt := range opts {
+		opt(config)
+	}
+
+	tm := NewTemplateManager()
+	if err := tm.RegisterTemplate("default_rag", defaultRAGTemplate); err != nil {
+		return nil, fmt.Errorf("failed to register default template: %w", err)
 	}
 
 	return &RAGMessageBuilder{
@@ -91,43 +131,13 @@ func NewRAGMessageBuilder(config RAGPromptConfig) (*RAGMessageBuilder, error) {
 
 // BuildSystemPrompt generates the system prompt with the provided documents
 func (rb *RAGMessageBuilder) BuildSystemPrompt() (llm.Message, error) {
-	systemPrompt, err := rb.templateManager.ExecuteTemplate("default_rag", rb.config)
+	systemPrompt, err := rb.templateManager.ExecuteTemplate("default_rag", *rb.config)
 	if err != nil {
 		return llm.Message{}, fmt.Errorf("failed to build system prompt: %v", err)
 	}
 
 	return llm.Message{
-		Role:    llm.SystemRole,
+		Role:    llm.RoleSystem,
 		Content: systemPrompt,
 	}, nil
-}
-
-func GenerateRAGResponse(documents []Document, userQuery string, writer io.Writer) error {
-	// Create configuration
-	config := RAGPromptConfig{
-		Documents:     documents,
-		MaxTokens:     2048,
-		Temperature:   0.2,
-		ResponseStyle: "concise and factual",
-		Query:         userQuery,
-	}
-
-	// Initialise RAG message builder
-	builder, err := NewRAGMessageBuilder(config)
-	if err != nil {
-		return fmt.Errorf("failed to create RAG message builder: %v", err)
-	}
-	systemPrompt, err := builder.BuildSystemPrompt()
-	messages := []llm.Message{
-		systemPrompt,
-	}
-
-	// Create LLM instance
-	llm, err := llm.NewLLMFromEnv()
-	if err != nil {
-		return fmt.Errorf("failed to create LLM: %v", err)
-	}
-
-	// Generate response
-	return llm.Generate(messages, writer)
 }

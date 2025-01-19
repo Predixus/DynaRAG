@@ -23,6 +23,7 @@ go.work.sum
 
 # env file
 .env
+.env.*
 
 # other binaries
 bin/
@@ -32,3 +33,5 @@ bin/
 
 # tmp folder
 /tmp
+/models
+/.vscode
