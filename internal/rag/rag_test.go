@@ -1,7 +1,6 @@
 package rag
 
 import (
-	"bytes"
 	"strings"
 	"testing"
 )
@@ -25,16 +24,16 @@ func TestRAGSystemPromptGeneration(t *testing.T) {
 		},
 	}
 
-	// Create configuration
-	config := RAGPromptConfig{
-		Documents:     documents,
-		MaxTokens:     2048,
-		Temperature:   0.2,
-		ResponseStyle: "concise and factual",
-	}
+	userQuery := "Explain how TCP and TLS work together to provide secure communication."
 
-	// Initialise RAG message builder
-	builder, err := NewRAGMessageBuilder(config)
+	// Initialize RAG message builder with options
+	builder, err := NewRAGMessageBuilder(
+		documents,
+		userQuery,
+		WithMaxTokens(2048),
+		WithTemperature(0.2),
+		WithResponseStyle("concise and factual"),
+	)
 	if err != nil {
 		t.Fatalf("Failed to create RAG message builder: %v", err)
 	}
@@ -45,30 +44,27 @@ func TestRAGSystemPromptGeneration(t *testing.T) {
 		t.Fatalf("Failed to build system prompt: %v", err)
 	}
 
+	// Verify system prompt contains key template sections
+	expectedParts := []string{
+		"<|begin_of_text|>",
+		"<|start_header_id|>system<|end_header_id|>",
+		"<|start_header_id|>user<|end_header_id|>",
+		userQuery,
+		"<|start_header_id|>assistant<|end_header_id|>",
+	}
+
+	for _, part := range expectedParts {
+		if !strings.Contains(systemMsg.Content, part) {
+			t.Errorf("System prompt missing expected part: %q", part)
+		}
+	}
+
 	// Verify system prompt contains document content
 	if !strings.Contains(systemMsg.Content, "TCP") {
 		t.Error("System prompt does not contain content from first document")
 	}
 	if !strings.Contains(systemMsg.Content, "TLS") {
 		t.Error("System prompt does not contain content from second document")
-	}
-
-	// Test full message sequence
-	userQuery := "Explain how TCP and TLS work together to provide secure communication."
-
-	// Test actual LLM generation (if token is available)
-	var buf bytes.Buffer
-	err = GenerateRAGResponse(documents, userQuery, &buf)
-	if err != nil {
-		t.Fatalf("Failed to generate RAG response: %v", err)
-	}
-
-	response := buf.String()
-	// t.Logf("\nTest Query: %s\n\nResponse:\n%s\n", userQuery, response)
-
-	// Basic validation of response
-	if len(response) == 0 {
-		t.Error("Generated response is empty")
 	}
 }
 
@@ -89,18 +85,22 @@ func TestRAGTemplateCustomization(t *testing.T) {
 		},
 	}
 
-	config := RAGPromptConfig{
-		Documents:     documents,
-		ResponseStyle: "technical",
+	// Create configuration using the builder pattern
+	builder, err := NewRAGMessageBuilder(
+		documents,
+		"test query",
+		WithResponseStyle("technical"),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create RAG message builder: %v", err)
 	}
 
-	tm := NewTemplateManager()
-	err := tm.RegisterTemplate("custom", customTemplate)
+	err = builder.templateManager.RegisterTemplate("custom", customTemplate)
 	if err != nil {
 		t.Fatalf("Failed to register custom template: %v", err)
 	}
 
-	result, err := tm.ExecuteTemplate("custom", config)
+	result, err := builder.templateManager.ExecuteTemplate("custom", *builder.config)
 	if err != nil {
 		t.Fatalf("Failed to execute custom template: %v", err)
 	}
@@ -119,7 +119,6 @@ func TestRAGTemplateCustomization(t *testing.T) {
 	}
 }
 
-// Test function to verify the markdown formatting
 func TestRAGMarkdownReferences(t *testing.T) {
 	documents := []Document{
 		{
@@ -138,14 +137,15 @@ func TestRAGMarkdownReferences(t *testing.T) {
 		},
 	}
 
-	config := RAGPromptConfig{
-		Documents:     documents,
-		MaxTokens:     2048,
-		Temperature:   0.2,
-		ResponseStyle: "concise and factual with markdown citations",
-	}
+	userQuery := "Explain how TCP and TLS work together, citing the specific documents."
 
-	builder, err := NewRAGMessageBuilder(config)
+	builder, err := NewRAGMessageBuilder(
+		documents,
+		userQuery,
+		WithMaxTokens(2048),
+		WithTemperature(0.2),
+		WithResponseStyle("concise and factual with markdown citations"),
+	)
 	if err != nil {
 		t.Fatalf("Failed to create RAG message builder: %v", err)
 	}
@@ -155,30 +155,20 @@ func TestRAGMarkdownReferences(t *testing.T) {
 		t.Fatalf("Failed to build system prompt: %v", err)
 	}
 
-	// Print the formatted system prompt for inspection
-	t.Logf("\nFormatted System Prompt:\n%s\n", systemMsg.Content)
-
-	// Verify markdown formatting has injected file names
+	// Verify template sections are present
 	expectedParts := []string{
+		"<|begin_of_text|>",
+		"<|start_header_id|>system<|end_header_id|>",
+		"Chunk Index:",
+		"Chunk Content",
+		"[relevant text][#ref-{chunk-index}]", // Example citation format
 		"networking.txt",
 		"security.txt",
-		"relevant text",
 	}
 
 	for _, part := range expectedParts {
 		if !strings.Contains(systemMsg.Content, part) {
-			t.Errorf("Expected template to contain markdown reference %q", part)
+			t.Errorf("Expected template to contain %q", part)
 		}
 	}
-
-	// Test with actual LLM if token is available
-	var buf bytes.Buffer
-	userQuery := "Explain how TCP and TLS work together, citing the specific documents."
-	err = GenerateRAGResponse(documents, userQuery, &buf)
-	if err != nil {
-		t.Fatalf("Failed to generate RAG response: %v", err)
-	}
-
-	// response := buf.String()
-	// t.Logf("\nTest Query: %s\n\nResponse:\n%s\n", userQuery, response)
 }
