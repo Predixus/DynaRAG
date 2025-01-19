@@ -1,7 +1,7 @@
-
 ![Group 6](https://github.com/user-attachments/assets/1b37d34c-6f54-4e34-9a93-c00757377f7f)
 
 ![GitHub Release](https://img.shields.io/github/v/release/Predixus/DynaRAG)
+[![Discord](https://img.shields.io/discord/1329817069146869831?logo=discord&logoColor=white)](https://discord.gg/shZeg7bYpC)
 
 A _fast_, _robust_, and _production-ready_ RAG backend - so you can focus on the chunks.
 
