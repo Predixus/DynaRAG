@@ -13,6 +13,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 
+	"github.com/Predixus/DynaRAG/internal/llm"
 	"github.com/Predixus/DynaRAG/internal/rag"
 	"github.com/Predixus/DynaRAG/internal/store"
 	"github.com/Predixus/DynaRAG/types"
@@ -83,12 +84,24 @@ func (c *Client) Query(
 		})
 	}
 
-	err = rag.GenerateRAGResponse(documents, query, writer)
+	builder, err := rag.NewRAGMessageBuilder(documents, query)
 	if err != nil {
-		slog.Error("Failed to generate RAG response", "error", err)
-		return err
+		return fmt.Errorf("failed to create RAG message builder: %w", err)
 	}
-	return nil
+
+	systemPrompt, err := builder.BuildSystemPrompt()
+	if err != nil {
+		return fmt.Errorf("failed to build system prompt: %w", err)
+	}
+
+	messages := []llm.Message{systemPrompt}
+
+	llmClient, err := llm.NewClient(c.config.LLMProvider, c.config.LLMToken)
+	if err != nil {
+		return fmt.Errorf("failed to create LLM client: %w", err)
+	}
+
+	return llmClient.Generate(messages, writer)
 }
 
 func (c *Client) PurgeChunks(ctx context.Context, dryRun *bool) (*store.DeletionStats, error) {
@@ -134,6 +147,8 @@ func (c *Client) ListChunks(
 
 type Config struct {
 	PostgresConnStr string
+	LLMProvider     string
+	LLMToken        string
 }
 
 type Client struct {
