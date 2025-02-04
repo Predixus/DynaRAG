@@ -22,7 +22,7 @@ func TestMetadataHashPossible(t *testing.T) {
 	assert.NoError(t, err)
 	hash1, err := CalculateMetadataHash(jsonBytes)
 	assert.NoError(t, err)
-	hash2, err := CalculateMetadataHash(jsonBytes)
+	hash2, _ := CalculateMetadataHash(jsonBytes)
 	assert.Equal(t, hash1, hash2)
 }
 
