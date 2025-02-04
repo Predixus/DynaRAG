@@ -2,6 +2,7 @@
 
 ![GitHub Release](https://img.shields.io/github/v/release/Predixus/DynaRAG)
 [![Discord Widget](https://discord.com/api/guilds/1329817069146869831/widget.png)](https://discord.gg/shZeg7bYpC)
+[![Go Report Card](https://goreportcard.com/badge/github.com/Predixus/DynaRAG)](https://goreportcard.com/report/github.com/Predixus/DynaRAG)
 
 A _fast_, _robust_, and _production-ready_ RAG backend - so you can focus on the chunks.
 
