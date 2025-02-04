@@ -65,13 +65,14 @@ type Document struct {
 }
 
 type Embedding struct {
-	ID           int64
-	DocumentID   pgtype.Int8
-	ModelName    EmbeddingModel
-	Embedding    pgvector.Vector
-	ChunkText    string
-	ChunkSize    int32
-	CreatedAt    pgtype.Timestamptz
-	Metadata     types.JSONMap
-	MetadataHash pgtype.Text
+	ID            int64
+	DocumentID    pgtype.Int8
+	ModelName     EmbeddingModel
+	Embedding     pgvector.Vector
+	ChunkText     string
+	ChunkSize     int32
+	CreatedAt     pgtype.Timestamptz
+	Metadata      types.JSONMap
+	MetadataHash  pgtype.Text
+	EmbeddingText pgtype.Text
 }

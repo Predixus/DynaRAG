@@ -21,7 +21,7 @@ func main() {
 		return
 	}
 
-	err = client.Chunk(context.Background(), "London is the capital of england", "./test", nil)
+	err = client.Chunk(context.Background(), "London is the capital of england", "./test", nil, nil)
 	if err != nil {
 		slog.Error("Failed to chunk text", "message", err)
 		return

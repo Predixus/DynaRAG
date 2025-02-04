@@ -18,7 +18,7 @@ func main() {
 	}
 
 	start := time.Now()
-	err = client.Chunk(context.Background(), "Test String", "./test", nil)
+	err = client.Chunk(context.Background(), "Test String", "./test", nil, nil)
 	elapsed := time.Since(start)
 
 	if err != nil {

@@ -12,6 +12,7 @@ test-all:
 clean:
 	@echo "Cleaning build artifacts..."
 	@rm -rf ./bin ./build ./dist ./tmp
+	go clean -testcache
 
 format:
 	@echo "Formatting code..."
