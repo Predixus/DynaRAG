@@ -19,7 +19,7 @@ func main() {
 	}
 
 	start := time.Now()
-	err = client.Chunk(context.Background(), "Test String", "./test", nil)
+	err = client.Chunk(context.Background(), "Test String", "./test", nil, nil)
 	elapsed := time.Since(start)
 	start = time.Now()
 	someMetadata := make(map[string]interface{}, 1)
@@ -36,6 +36,7 @@ func main() {
 		context.Background(),
 		"Another test string!",
 		"./another_directory",
+		nil,
 		(*types.JSONMap)(&someMetadata),
 	)
 
