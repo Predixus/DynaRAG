@@ -192,7 +192,7 @@ func (l *LLMModel[T]) Generate(messages []Message, writer io.Writer) error {
 		return errors.New("Messages cannot be empty.")
 	}
 
-	// so far this seems common accross all the LLM providers.
+	// so far this seems common across all the LLM providers.
 	// if that changes, we will need to move the responsibility of
 	// this payload to the generic
 	payload := map[string]interface{}{
