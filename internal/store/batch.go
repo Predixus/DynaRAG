@@ -60,8 +60,20 @@ func BatchProgressEmbeddings(ctx context.Context, userId string, chunks []Chunk)
 	return progress
 }
 
-func processSingleChunk(ctx context.Context, userId string, chunk Chunk, progress *BatchProgress) error {
-	_, err := AddEmbedding(ctx, userId, chunk.FilePath, chunk.ChunkText, chunk.EmbeddingText, chunk.Metadata)
+func processSingleChunk(
+	ctx context.Context,
+	userId string,
+	chunk Chunk,
+	progress *BatchProgress,
+) error {
+	_, err := AddEmbedding(
+		ctx,
+		userId,
+		chunk.FilePath,
+		chunk.ChunkText,
+		chunk.EmbeddingText,
+		chunk.Metadata,
+	)
 	progress.mu.Lock()
 	defer progress.mu.Unlock()
 	if err != nil {
