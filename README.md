@@ -24,20 +24,19 @@ A _fast_, _robust_, and _production-ready_ RAG backend - so you can focus on the
 
 ## What is DynaRAG?
 
-DynaRAG is a RAG (Retrieval-Augmented Generation) backend that implements a simple naive approach.
+DynaRAG is a RAG (Retrieval-Augmented Generation) backend that implements all the core functionality that you
+would expect from a RAG framework:
 
-In this way, it is no more complex than the simplest RAG examples that you may find on Haystack or Langchain.
+- Hybrid retrieval, via [Cover Density Ranking](https://www.ra.ethz.ch/cdstore/www2002/refereed/643/node7.html) and [Vector Similarity Search](https://www.postgresql.org/docs/current/textsearch-controls.html#:~:text=Clarke%2C%20Cormack%2C%20and%20Tudhope%27s%20%22Relevance%20Ranking%20for%20One%20to%20Three%20Term%20Queries%22%20in%20the%20journal%20%22Information%20Processing%20and%20Management%22%2C%201999)
+- HyDE (Hypothetical Document Embeddings) to increase retreival likelihood
+- Multi-Modal Embedding, to handle image search & table based search
 
-Instead, DynaRAG focuses on providing a highly performant backend for adding, retrieving and filtering
-text chunks.
+Given all of these methods DynaRAG focuses on providing a highly performant backend for adding, retrieving
+and filtering text chunks to help you build a powerful RAG application.
 
-DynaRAG does this by pushing the inference and database-query latencies into the parts of the RAG
-pipeline that yield the lowest round trip time.
-
-## Core Features
-
-- Naive RAG with Go-managed feature extraction models (props to [hugot](https://github.com/knights-analytics/hugot) for building
-  awesome go bindings for Onnx)
+DynaRAG keeps the whole process performant by by pushing the inference and database-query latencies into
+the parts of the RAG pipeline that yield the lowest round trip time. There is no magic in this approach just
+good engineering.
 
 ## Core Functionality
 
