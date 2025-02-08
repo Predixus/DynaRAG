@@ -115,3 +115,16 @@ JOIN documents d ON d.id = e.document_id
 WHERE (sqlc.narg(metadata_hash)::text IS NULL OR e.metadata_hash = sqlc.narg(metadata_hash)::text)
 ORDER BY e.created_at DESC;
 
+-- name: SearchDocumentsBM25 :many
+SELECT 
+    d.id,
+    d.file_path,
+    d.total_chunk_size,
+    d.created_at,
+    d.updated_at,
+    -- BM25 rank:
+    ts_rank_cd(d.text_searchable_column, to_tsquery('english', $1)) AS rank
+FROM documents d
+WHERE d.text_searchable_column @@ to_tsquery('english', $1)
+ORDER BY rank DESC
+LIMIT 50;
