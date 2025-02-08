@@ -274,6 +274,18 @@ ALTER TABLE public.documents OWNER TO admin;
 -- Name: documents_id_seq; Type: SEQUENCE; Schema: public; Owner: admin
 --
 
+-- a tsvector column for full-text search in the documents table
+
+ALTER TABLE public.documents
+ADD COLUMN text_searchable_column tsvector;
+
+
+-- just converting file_path for now
+
+UPDATE public.documents
+SET text_searchable_column = to_tsvector('english', file_path);
+
+
 CREATE SEQUENCE public.documents_id_seq
     START WITH 1
     INCREMENT BY 1
@@ -556,4 +568,20 @@ ALTER TABLE ONLY public.embeddings
 --
 -- PostgreSQL database dump complete
 --
+
+-- creating a gin index to speed up text search operations
+CREATE INDEX idx_text_searchable_column
+ON public.documents USING gin (text_searchable_column);
+
+
+-- trigger to automatically update text_searchable_column
+   CREATE TRIGGER documents_tsvector_update
+   BEFORE INSERT OR UPDATE ON public.documents
+   FOR EACH ROW
+   EXECUTE FUNCTION tsvector_update_trigger(
+       text_searchable_column,
+       'pg_catalog.english',
+       file_path
+   );
+
 
